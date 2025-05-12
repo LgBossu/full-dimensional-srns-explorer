@@ -1,0 +1,31 @@
+[tool.poetry]
+name = "test-code-for-2025-short-range-no-signaling-characterization"
+version = "0.1.0"
+description = ""
+authors = ["Louis-Guillaume Bossu <louis-guillaume.bossu@polytechnique.edu>"]
+package-mode = false
+
+[tool.poetry.group.dev.dependencies]
+mypy = "^1.11.2"
+ruff = "^0.6.5"
+
+[build-system]
+requires = ["poetry-core>=1.0.0"]
+build-backend = "poetry.core.masonry.api"
+
+[tool.poetry.dependencies]
+python = "^3.10"
+notebook = "7.2.2"
+loguru = "^0.7.2"
+scipy = "^1.15.3"
+
+[tool.mypy]
+python_version = "3.10"
+ignore_missing_imports = true
+strict = true
+show_error_codes = true
+
+[tool.ruff]
+line-length = 100
+select = ["E", "F", "W", "I"]  # Enforce common error codes and flake8 rules
+fix = true  # Automatically apply fixes for common issues (like import sorting or formatting)
