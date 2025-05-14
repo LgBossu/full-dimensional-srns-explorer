@@ -177,9 +177,19 @@ class Behavior:
         """
         Check if the behavior is no-signaling
         """
-        all_indices = self.get_all_indices()
-        # No-signaling condition from Alice to Bob
-        # TODO
+        summable = np.reshape(self.behavior_vector, (2, self.delta, self.delta, self.m, self.m))
+
+        sum_over_a = np.sum(summable, axis=1)
+        sum_over_a = np.transpose(sum_over_a, (2, 4, 0, 3))
+        sum_over_a = sum_over_a.reshape(-1, self.m)
+        a_no_signaling = np.all(np.allclose(sum_over_a, sum_over_a[:, [0]], axis=1))
+
+        sum_over_b = np.sum(summable, axis=2)
+        sum_over_b = np.transpose(sum_over_b, (1, 3, 0, 2))
+        sum_over_b = sum_over_b.reshape(-1, self.m)
+        b_no_signaling = np.all(np.allclose(sum_over_b, sum_over_b[:, [0]], axis=1))
+
+        return a_no_signaling and b_no_signaling
 
 
 # The maximally mixed state over the experiment space
