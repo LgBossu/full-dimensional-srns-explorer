@@ -17,7 +17,7 @@ class Sampler(ABC):
 
 class UniformNormalizedSampler:
     """
-    A sampler that generates uniformly distributed samples in a normalized space.
+    A sampler that generates uniformly distributed samples in the unit simplex (general behaviors).
     """
 
     def __init__(self, delta: int, m: int, z: bool):
