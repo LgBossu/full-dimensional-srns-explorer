@@ -171,7 +171,7 @@ class Behavior:
         Check if the behavior is normalized
         """
         matrix = self.get_matrix()
-        return np.all(np.sum(matrix, axis=1) == 1)
+        return np.all(abs(np.sum(matrix, axis=1) - 1) < 1e-12)
 
     def no_signaling(self):
         """
