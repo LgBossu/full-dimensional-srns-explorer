@@ -18,7 +18,7 @@ class Behavior:
     # VECTOR AND MATRIX FORMS CONVERSIONS
 
     # Convert a vector behavior to its matrix representation
-    def behavior_vector_to_matrix(behavior_vector):
+    def behavior_vector_to_matrix(self, behavior_vector):
         """
         Convert a vector behavior to its matrix representation
         :param behavior_vector: The behavior vector
@@ -27,7 +27,7 @@ class Behavior:
         return np.reshape(behavior_vector, (2, 4, 4))
 
     # ... and vice versa
-    def behavior_matrix_to_vector(behavior_matrix):
+    def behavior_matrix_to_vector(self, behavior_matrix):
         """
         Convert a matrix behavior to its vector representation
         :param behavior_matrix: The behavior matrix
@@ -179,44 +179,21 @@ class Behavior:
         """
         summable = np.reshape(self.behavior_vector, (2, self.delta, self.delta, self.m, self.m))
 
-        sum_over_a = np.sum(summable, axis=1)
-        sum_over_a = np.transpose(sum_over_a, (2, 4, 0, 3))
+        sum_over_a: np.ndarray = np.sum(summable, axis=1)
+        logger.debug(f"Shape of summed array: {sum_over_a.shape}")
+        sum_over_a = np.transpose(sum_over_a, (1, 3, 0, 2))
         sum_over_a = sum_over_a.reshape(-1, self.m)
-        a_no_signaling = np.all(np.allclose(sum_over_a, sum_over_a[:, [0]], axis=1))
+        a_no_signaling = np.all(sum_over_a == sum_over_a[:, [0]], axis=1)
 
-        sum_over_b = np.sum(summable, axis=2)
+        sum_over_b: np.ndarray = np.sum(summable, axis=2)
         sum_over_b = np.transpose(sum_over_b, (1, 3, 0, 2))
         sum_over_b = sum_over_b.reshape(-1, self.m)
-        b_no_signaling = np.all(np.allclose(sum_over_b, sum_over_b[:, [0]], axis=1))
+        b_no_signaling = np.all(sum_over_b == sum_over_b[:, [0]], axis=1)
 
-        return a_no_signaling and b_no_signaling
+        return np.all(a_no_signaling) and np.all(b_no_signaling)
 
+    def is_normalized(self):
+        return self.positivity() and self.normalization()
 
-# The maximally mixed state over the experiment space
-I = (1 / 4) * np.ones(32)  # noqa: E741
-
-# The usual (2,2,2) PR box
-SR_pr_box = np.array(
-    [
-        1 / 2,
-        1 / 2,
-        1 / 2,
-        0,
-        0,
-        0,
-        0,
-        1 / 2,
-        0,
-        0,
-        0,
-        1 / 2,
-        1 / 2,
-        1 / 2,
-        1 / 2,
-        0,
-    ]
-)
-
-# The PR box in the experiment space : p(ab|xy) is assumed to be
-# independent of the value of z
-pr_box = np.concatenate((SR_pr_box, SR_pr_box), axis=0)
+    def is_no_signaling(self):
+        return self.positivity() and self.normalization() and self.no_signaling()
