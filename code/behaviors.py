@@ -179,10 +179,17 @@ class Behavior:
         """
         summable = np.reshape(self.behavior_vector, (2, self.delta, self.delta, self.m, self.m))
 
+        logger.debug(f"Summable array shape: {summable.shape}")
+        logger.debug(f"Summable array: {summable}")
         sum_over_a: np.ndarray = np.sum(summable, axis=1)
         logger.debug(f"Shape of summed array: {sum_over_a.shape}")
+        logger.debug(f"Summed array: {sum_over_a}")
         sum_over_a = np.transpose(sum_over_a, (1, 3, 0, 2))
+        logger.debug(f"Transposed summed array shape: {sum_over_a.shape}")
+        logger.debug(f"Transposed summed array: {sum_over_a}")
         sum_over_a = sum_over_a.reshape(-1, self.m)
+        logger.debug(f"Reshaped summed array shape: {sum_over_a.shape}")
+        logger.debug(f"Reshaped summed array: {sum_over_a}")
         a_no_signaling = np.all(sum_over_a == sum_over_a[:, [0]], axis=1)
 
         sum_over_b: np.ndarray = np.sum(summable, axis=2)
@@ -197,3 +204,47 @@ class Behavior:
 
     def is_no_signaling(self):
         return self.positivity() and self.normalization() and self.no_signaling()
+
+
+def display_ns_test_arrays():
+    """
+    Only serves to show the effects on an array of the operations used in Behavior.no_signaling()
+    """
+    check = np.array(
+        [
+            [
+                [
+                    ["p0000S", "p0001S", "p0010S", "p0011S"],
+                    ["p0100S", "p0101S", "p0110S", "p0111S"],
+                ],
+                [
+                    ["p1000S", "p1001S", "p1010S", "p1011S"],
+                    ["p1100S", "p1101S", "p1110S", "p1111S"],
+                ],
+            ],
+            [
+                [
+                    ["p0000L", "p0001L", "p0010L", "p0011L"],
+                    ["p0100L", "p0101L", "p0110L", "p0111L"],
+                ],
+                [
+                    ["p1000L", "p1001L", "p1010L", "p1011L"],
+                    ["p1100L", "p1101L", "p1110L", "p1111L"],
+                ],
+            ],
+        ],
+        dtype=object,
+    )
+
+    check = check.reshape(2, 2, 2, 2, 2)
+
+    print(check.shape)
+    print(check)
+    print("\n------\n")
+    print(check.reshape(2, 4, 4))
+    print("\n------\n")
+    print(check.sum(axis=1))
+    print("\n------\n")
+    print((check.sum(axis=1)).transpose(1, 3, 0, 2))
+    print("\n------\n")
+    print((check.sum(axis=1)).transpose(1, 3, 0, 2).reshape(-1, 2))
