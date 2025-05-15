@@ -136,31 +136,16 @@ class Behavior:
             return np.all(self.behavior_vector >= comparable.behavior_vector)
         return False
 
-    # COORDINATE UTILS
+    # MATRIX OPERATIONS
+    def __matmul__(self, other):
+        if not isinstance(other, np.ndarray):
+            raise ValueError("The right operand must be a numpy array.")
+        return self.get_vector() @ other
 
-    # Given a 1-D index, return the corresponding a,b,x,y,z indices
-    def index_to_indices(self, index):
-        """
-        Given a 1-D index, return the corresponding a,b,x,y,z indices
-        :param index: The 1-D index
-        :return: The corresponding a,b,x,y,z indices
-        """
-        # WARNING : This function works only for delta=m=2
-        a = (index // 8) % 2
-        b = (index // 4) % 2
-        x = (index // 2) % 2
-        y = index % 2
-        z = index // 16
-        return a, b, x, y, z
-
-    # Given a set of indices, return the corresponding 1-D index
-    def indices_to_index(self, a, b, x, y, z):
-        """
-        Given a set of indices, return the corresponding 1-D index
-        :return: The corresponding 1-D index
-        """
-        # WARNING : This function works only for delta=m=2
-        return (z * 16) + (a * 8) + (b * 4) + (x * 2) + y
+    def __rmatmul__(self, other):
+        if not isinstance(other, np.ndarray):
+            raise ValueError("The left operand must be a numpy array.")
+        return other @ self.get_vector()
 
     # CONDITIONS
     def positivity(self):
@@ -204,6 +189,45 @@ class Behavior:
 
     def is_no_signaling(self):
         return self.positivity() and self.normalization() and self.no_signaling()
+
+
+# COORDINATE UTILS
+
+
+# Given a 1-D index, return the corresponding a,b,x,y,z indices
+def routed_index_to_indices(index, delta: int = 2, m: int = 2):
+    """
+    In the routed setting, convert a 1-D index to the corresponding a,b,x,y,z indices
+    """
+    a = (index // (delta * m**2)) % delta
+    b = (index // (m**2)) % delta
+    x = (index // m) % m
+    y = index % m
+    z = index // (delta**2 * m**2)
+    return a, b, x, y, z
+
+
+# Given a set of indices, return the corresponding 1-D index
+def routed_indices_to_index(a, b, x, y, z, delta: int = 2, m: int = 2):
+    """
+    In the routed setting, convert a set of indices to the corresponding 1-D index
+    """
+    return (z * (delta**2 * m**2)) + (a * (delta * m**2)) + (b * (m**2)) + (x * m) + y
+
+
+# Certain typical behaviors
+
+# The maximally mixed state over the experiment space
+completely_mixed_behavior = Behavior((1 / 4) * np.ones(32))
+
+# The usual (2,2,2) PR box
+SR_pr_box = np.array(
+    [1 / 2, 1 / 2, 1 / 2, 0, 0, 0, 0, 1 / 2, 0, 0, 0, 1 / 2, 1 / 2, 1 / 2, 1 / 2, 0]
+)
+
+# The PR box in the experiment space : p(ab|xy) is assumed to be
+# independent of the value of z
+pr_box = Behavior(np.concatenate((SR_pr_box, SR_pr_box), axis=0))
 
 
 def display_ns_test_arrays():
