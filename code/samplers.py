@@ -1,3 +1,5 @@
+# TODO : MIGHT NEED REFACTORING AFTER BEHAVIOR CLASS REFACTORING
+
 import sys
 from abc import ABC, abstractmethod
 
@@ -5,7 +7,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import polytopewalk as pw
 import scipy as sp
-from behaviors import Behavior
+from behaviors import RoutedBehavior
 from loguru import logger
 from no_signaling_sets import NoSignalingSet
 from scipy.spatial.distance import pdist
@@ -19,7 +21,7 @@ class Sampler(ABC):
     """
 
     @abstractmethod
-    def sample(self) -> Behavior:
+    def sample(self) -> RoutedBehavior:
         pass
 
 
@@ -39,14 +41,14 @@ class UniformNormalizedSampler:
         self.z = z
         self.np_sampling_shape = (self.z + 1, self.delta**2, self.m**2)
 
-    def sample(self) -> Behavior:
+    def sample(self) -> RoutedBehavior:
         sampled = np.random.dirichlet(np.ones(self.delta**2), (self.z + 1) * self.m**2)
 
         if self.z:
             sample_s = sampled[: self.m**2, :].T
             sample_l = sampled[self.m**2 :, :].T
             sample = np.array([sample_s, sample_l])
-            res = Behavior(sample)
+            res = RoutedBehavior(sample)
         else:
             raise NotImplementedError("Sampling for z = False is not implemented.")
 
@@ -129,8 +131,8 @@ class NoSignalingSampler:
 
         return samples_og
 
-    def sample(self) -> Behavior:
-        return Behavior(self.sample_multiple(number_of_samples=1, number_to_burn=500)[0])
+    def sample(self) -> RoutedBehavior:
+        return RoutedBehavior(self.sample_multiple(number_of_samples=1, number_to_burn=500)[0])
 
 
 class SamplesAnalyzer:
@@ -158,7 +160,7 @@ class SamplesAnalyzer:
         for vec in tqdm(self.samples, desc="Checking samples"):
             all_samples_count += 1
             # Check that the point is in the no-signaling set
-            behavior = Behavior(vec)
+            behavior = RoutedBehavior(vec)
             if not behavior.is_no_signaling():
                 all_samples_good = False
                 bad_samples_count += 1

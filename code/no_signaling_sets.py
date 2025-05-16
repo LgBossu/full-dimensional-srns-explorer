@@ -1,5 +1,7 @@
 """This module aims to provide in matrix form the equations defining the no signaling set."""
 
+# TODO : MIGHT NEED REFACTORING AFTER BEHAVIORS REFACTORING
+
 from abc import ABC, abstractmethod
 
 import behaviors

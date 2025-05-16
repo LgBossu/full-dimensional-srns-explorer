@@ -1,104 +1,80 @@
+from abc import ABC, abstractmethod
+
 import numpy as np
 from loguru import logger
 
 
-class Behavior:
+class Behavior(ABC):
     """
-    Class to represent a behavior in the experiment space
+    Abstract class for defining behaviors.
     """
 
-    # BASIC CLASS PARAMETERS
-
-    m: int = 2  # The number of possible inputs for Alice and Bob
-    delta: int = 2  # The number of possible outputs for Alice and Bob
-
-    vector_shape: tuple[int] = (2 * delta**2 * m**2,)  # The dimension of the experiment space
-    matrix_shape: tuple[int, int, int] = (2, delta**2, m**2)  # The shape of the behavior matrix
+    # CONSTRUCTOR
+    def __init__(self, delta: int, m: int, vector: np.ndarray = None):
+        """
+        Initialize the behavior with delta and m parameters.
+        :param delta: The number of possible outputs for Alice and Bob
+        :param m: The number of possible inputs for Alice and Bob
+        """
+        if not isinstance(delta, int) or not delta > 0:
+            raise ValueError("Delta must be a positive integer.")
+        if not isinstance(m, int) or not m > 0:
+            raise ValueError("m must be a positive integer.")
+        self.delta = delta
+        self.m = m
+        self.behavior_vector = vector
+        self.vector_shape: tuple[int] = None  # The dimension of the latent space
 
     # VECTOR AND MATRIX FORMS CONVERSIONS
-
-    # Convert a vector behavior to its matrix representation
+    @abstractmethod
     def behavior_vector_to_matrix(self, behavior_vector):
         """
         Convert a vector behavior to its matrix representation
         :param behavior_vector: The behavior vector
         :return: The behavior matrix
         """
-        return np.reshape(behavior_vector, self.matrix_shape)
+        pass
 
-    # ... and vice versa
+    @abstractmethod
     def behavior_matrix_to_vector(self, behavior_matrix):
         """
         Convert a matrix behavior to its vector representation
         :param behavior_matrix: The behavior matrix
         :return: The behavior vector
         """
-        return np.reshape(behavior_matrix, self.vector_shape)
-
-    # CONSTRUCTOR
-
-    def __init__(self, coords_array: np.ndarray):
-        """
-        Initialize the behavior with a vector or matrix representation
-        :param coords_array: The behavior vector or matrix
-        """
-        if coords_array.shape == self.vector_shape:
-            self.behavior_vector = coords_array
-        elif coords_array.shape == self.matrix_shape:
-            self.behavior_vector = self.behavior_matrix_to_vector(coords_array)
-        else:
-            raise ValueError(
-                f"Invalid shape {coords_array.shape}. Expected {self.vector_shape} or {self.matrix_shape}"  # noqa: E501
-            )
+        pass
 
     # GETTERS
     def get_vector(self):
-        """
-        Get the behavior vector
-        :return: The behavior vector
-        """
         return self.behavior_vector
 
     def get_matrix(self):
-        """
-        Get the behavior matrix
-        :return: The behavior matrix
-        """
         return self.behavior_vector_to_matrix(self.behavior_vector)
 
-    def get_all_indices(self):
-        return np.array([self.index_to_indices(i) for i in range(2 * self.delta**2 * self.m**2)])
+    def get_delta(self):
+        return self.delta
+
+    def get_m(self):
+        return self.m
+
+    def get_vector_shape(self):
+        return self.vector_shape
 
     # STRING REPRESENTATIONS
-
     def __repr__(self):
         return f"Behavior({self.behavior_vector})"
 
+    @abstractmethod
     def __str__(self):
-        matrix_form = self.behavior_vector_to_matrix(self.behavior_vector)
-        res: str = "Behavior:\n"
-        res += f"Short path (z=S):\n{matrix_form[0]}\n"
-        res += f"Long path (z=L) :\n{matrix_form[1]}\n"
-        res += "-" * 12
-        return res
+        pass
 
     # EQUALITY
+    @abstractmethod
     def compare_array(self, other):
-        logger.trace(f"Checking if variable {other} can be treated as a Behavior for comparisons")
-
-        if isinstance(other, Behavior):
-            return other
-        elif isinstance(other, np.ndarray):
-            if other.shape == self.vector_shape or other.shape == self.matrix_shape:
-                return Behavior(other)
-            logger.warning(f"Invalid shape on conversion into Behavior: {other.shape}")
-        elif isinstance(other, int) or isinstance(other, float):
-            return Behavior(np.ones(self.vector_shape) * other)
-
-        logger.warning(
-            f"Attempted to convert {other} into Behavior for comparison, but it is not a valid type"
-        )
-        return None
+        """
+        Determine if the other object can be compared to this behavior
+        """
+        pass
 
     def __eq__(self, other):
         comparable = self.compare_array(other)
@@ -151,17 +127,89 @@ class Behavior:
     def positivity(self):
         return self >= 0
 
-    def normalization(self):
+    @abstractmethod
+    def normalization(self, atol=1e-10):
+        """
+        Check if the behavior is normalized
+        """
+        pass
+
+    @abstractmethod
+    def no_signaling(self, atol=1e-10):
+        """
+        Check if the behavior is no-signaling
+        """
+        pass
+
+    def is_normalized(self, atol=1e-10):
+        return self.positivity() and self.normalization(atol=atol)
+
+    def is_no_signaling(self, atol=1e-10):
+        return self.positivity() and self.normalization(atol=atol) and self.no_signaling(atol=atol)
+
+
+class RoutedBehavior(Behavior):
+    """
+    Class to represent a behavior measured in the routed experiment setting,
+    assimilated to a p(ab|xyz) distribution.
+    """
+
+    def __init__(self, delta: int, m: int, vector: np.ndarray = None):
+        """
+        Initialize the behavior with delta and m parameters.
+        :param delta: The number of possible outputs for Alice and Bob
+        :param m: The number of possible inputs for Alice and Bob
+        """
+        super().__init__(delta, m, vector)
+
+        self.vector_shape = (2 * delta**2 * m**2,)
+        assert (
+            self.behavior_vector.shape == (2 * delta**2 * m**2,)
+        ), f"Invalid shape {self.behavior_vector.shape}. Expected {self.vector_shape}, to match declared values (delta={self.delta}, m={self.m})."  # noqa: E501
+
+        self.matrix_shape = (2, delta**2, m**2)
+
+    def behavior_vector_to_matrix(self, behavior_vector):
+        return np.reshape(behavior_vector, self.matrix_shape)
+
+    def behavior_matrix_to_vector(self, behavior_matrix):
+        return np.reshape(behavior_matrix, self.vector_shape)
+
+    def __str__(self):
+        matrix_form = self.behavior_vector_to_matrix(self.behavior_vector)
+        res: str = "Behavior:\n"
+        res += f"Short path (z=S):\n{matrix_form[0]}\n"
+        res += f"Long path (z=L) :\n{matrix_form[1]}\n"
+        res += "-" * 12
+        return res
+
+    def compare_array(self, other):
+        logger.trace(f"Checking if variable {other} can be treated as a Behavior for comparisons")
+
+        if isinstance(other, RoutedBehavior):
+            return other
+        elif isinstance(other, np.ndarray):
+            if other.shape == self.vector_shape:
+                return RoutedBehavior(self.delta, self.m, other)
+            elif other.shape == self.matrix_shape:
+                return RoutedBehavior(self.delta, self.m, self.behavior_matrix_to_vector(other))
+            logger.warning(f"Invalid shape on conversion into Behavior: {other.shape}")
+        elif isinstance(other, int) or isinstance(other, float):
+            return RoutedBehavior(self.delta, self.m, np.ones(self.vector_shape) * other)
+
+        logger.warning(
+            f"Attempted to convert {other} into Behavior for comparison, but it is not a valid type"
+        )
+        return None
+
+    def normalization(self, atol=1e-10):
         """
         Check if the behavior is normalized
         """
         matrix = self.get_matrix()
-        return np.all(abs(np.sum(matrix, axis=1) - 1) < 1e-12)
+        return np.all(abs(np.sum(matrix, axis=1) - 1) < atol)
 
-    def no_signaling(self, atol=1e-8):
-        """
-        Check if the behavior is no-signaling
-        """
+    def no_signaling(self, atol=1e-10):
         summable = np.reshape(self.behavior_vector, (2, self.delta, self.delta, self.m, self.m))
 
         logger.trace(f"Summable array shape: {summable.shape}")
@@ -186,16 +234,8 @@ class Behavior:
 
         return np.all(a_no_signaling) and np.all(b_no_signaling)
 
-    def is_normalized(self):
-        return self.positivity() and self.normalization()
-
-    def is_no_signaling(self, atol=1e-8):
-        return self.positivity() and self.normalization() and self.no_signaling(atol=atol)
-
 
 # COORDINATE UTILS
-
-
 # Given a 1-D index, return the corresponding a,b,x,y,z indices
 def routed_index_to_indices(index, delta: int = 2, m: int = 2):
     """
