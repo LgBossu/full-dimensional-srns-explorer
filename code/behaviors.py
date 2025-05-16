@@ -187,7 +187,12 @@ class RoutedBehavior(Behavior):
         logger.trace(f"Checking if variable {other} can be treated as a Behavior for comparisons")
 
         if isinstance(other, RoutedBehavior):
-            return other
+            if other.delta == self.delta and other.m == self.m:
+                return other
+            else:
+                logger.warning(
+                    f"RoutedBehavior with different delta or m: ({other.delta}, {other.m}) != ({self.delta}, {self.m})"  # noqa: E501
+                )
         elif isinstance(other, np.ndarray):
             if other.shape == self.vector_shape:
                 return RoutedBehavior(self.delta, self.m, other)
@@ -197,9 +202,11 @@ class RoutedBehavior(Behavior):
         elif isinstance(other, int) or isinstance(other, float):
             return RoutedBehavior(self.delta, self.m, np.ones(self.vector_shape) * other)
 
-        logger.warning(
-            f"Attempted to convert {other} into Behavior for comparison, but it is not a valid type"
-        )
+        else:
+            logger.warning(
+                f"Attempted to convert {other} into Behavior for comparison, but it is not a valid type"  # noqa: E501
+            )
+
         return None
 
     def normalization(self, atol=1e-10):
@@ -233,6 +240,109 @@ class RoutedBehavior(Behavior):
         b_no_signaling = np.all(b_checksum, axis=1)
 
         return np.all(a_no_signaling) and np.all(b_no_signaling)
+
+
+class LatentSRNSBehavior(Behavior):
+    """
+    Class to represent the latent behavior q such that:
+    p is SRNS iff p=f(q)
+    Assimilated to the vector (q(ab|xy), q(a beta|x))
+    """
+
+    def __init__(self, delta: int, m: int, vector: np.ndarray = None):
+        """
+        Initialize the behavior with delta and m parameters.
+        :param delta: The number of possible outputs for Alice and Bob
+        :param m: The number of possible inputs for Alice and Bob
+        """
+        super().__init__(delta, m, vector)
+
+        self.dim_q_s = self.delta**2 * self.m**2
+        self.dim_q_L = self.m * self.delta ** (self.m + 1)
+        self.dim_q = self.dim_q_s + self.dim_q_L
+        self.vector_shape = (self.dim_q,)
+        assert (
+            self.behavior_vector.shape == (self.dim_q,)
+        ), f"Invalid shape {self.behavior_vector.shape}. Expected {self.vector_shape}, to match declared values (delta={self.delta}, m={self.m})."  # noqa: E501
+
+        self.matrix_shapes = [(self.delta**2, self.m**2), (self.delta ** (self.m + 1), self.m)]
+
+    def behavior_vector_to_matrix(self, behavior_vector):
+        q_short = behavior_vector[: self.dim_q_s]
+        q_long = behavior_vector[self.dim_q_s :]
+
+        q_short = np.reshape(q_short, self.matrix_shapes[0])
+        q_long = np.reshape(q_long, self.matrix_shapes[1])
+        return q_short, q_long
+
+    def behavior_matrix_to_vector(self, behavior_matrix):
+        q_short = behavior_matrix[0]
+        q_long = behavior_matrix[1]
+
+        q_short = np.reshape(q_short, self.dim_q_s)
+        q_long = np.reshape(q_long, self.dim_q_L)
+        return np.concatenate((q_short, q_long), axis=0)
+
+    def __str__(self):
+        q_short, q_long = self.get_matrix()
+        res: str = "Behavior:\n"
+        res += f"Short path (z=S):\n{q_short}\n"
+        res += f"Long path (z=L) :\n{q_long}\n"
+        res += "-" * 12
+        return res
+
+    def compare_array(self, other):
+        logger.trace(f"Checking if variable {other} can be treated as a Behavior for comparisons")
+
+        if isinstance(other, LatentSRNSBehavior):
+            if other.delta == self.delta and other.m == self.m:
+                return other
+            else:
+                logger.warning(
+                    f"LatentSRNSBehavior with different delta or m: ({other.delta}, {other.m}) != ({self.delta}, {self.m})"  # noqa: E501
+                )
+        elif isinstance(other, np.ndarray):
+            if other.shape == self.vector_shape:
+                return LatentSRNSBehavior(self.delta, self.m, other)
+        elif (
+            isinstance(other, list)
+            and len(other) == 2
+            and isinstance(other[0], np.ndarray)
+            and isinstance(other[1], np.ndarray)
+        ):
+            if other[0].shape == self.matrix_shapes[0] and other[1].shape == self.matrix_shapes[1]:
+                return LatentSRNSBehavior(
+                    self.delta, self.m, vector=self.behavior_matrix_to_vector(other)
+                )
+
+            logger.warning(
+                f"A list of arrays was passed, but the shapes are invalid: ({other[0].shape}, {other[1].shape}) != ({self.matrix_shapes[0]}, {self.matrix_shapes[1]})"  # noqa: E501
+            )
+
+        elif isinstance(other, int) or isinstance(other, float):
+            return LatentSRNSBehavior(self.delta, self.m, np.ones(self.vector_shape) * other)
+
+        else:
+            logger.warning(
+                f"Attempted to convert {other} into Behavior for comparison, but it is not a valid type (accepted types are int, float, np.ndarray, list of 2 np.ndarrays, and matching LatentSRNSBehavior)"  # noqa: E501
+            )
+
+        return None
+
+    def normalization(self, atol=1e-10):
+        """
+        Check if the behavior is normalized
+        """
+        q_short, q_long = self.behavior_vector_to_matrix(self.behavior_vector)
+        return np.all(abs(np.sum(q_short, axis=1) - 1) < atol) and np.all(
+            abs(np.sum(q_long, axis=1) - 1) < atol
+        )
+
+    def no_signaling(self, atol=1e-10):
+        # TODO: Implement the no-signaling condition for the latent behavior
+        raise NotImplementedError(
+            "No signaling condition for the latent behavior is not implemented yet."
+        )
 
 
 # COORDINATE UTILS
