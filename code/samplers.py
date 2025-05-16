@@ -130,9 +130,21 @@ class NoSignalingSampler:
     def sample(self) -> Behavior:
         return Behavior(self.sample_multiple(number_of_samples=1, number_to_burn=500)[0])
 
+
+class SamplesAnalyzer:
+    """
+    A class to compute statistics on samples distributions.
+    """
+
+    def __init__(self, samples: np.ndarray, sampler_name: str | None = None):
+        """
+        Initialize the analyzer with samples and an optional sampler name.
+        """
+        self.samples = samples
+        self.sampler_name = sampler_name
+
     def check_samples_are_no_signaling(
         self,
-        samples_og: np.ndarray,
     ) -> bool:
         """
         Check that the samples are in the no-signaling set.
@@ -141,7 +153,7 @@ class NoSignalingSampler:
         all_samples_good = True
         all_samples_count = 0
         bad_samples_count = 0
-        for vec in tqdm(samples_og, desc="Checking samples"):
+        for vec in tqdm(self.samples, desc="Checking samples"):
             all_samples_count += 1
             # Check that the point is in the no-signaling set
             behavior = Behavior(vec)
@@ -156,19 +168,6 @@ class NoSignalingSampler:
                 f"Some points are not in the no-signaling set ({bad_samples_count}/{all_samples_count})"  # noqa: E501
             )
         return all_samples_good
-
-
-class SamplesAnalyzer:
-    """
-    A class to compute statistics on samples distributions.
-    """
-
-    def __init__(self, samples: np.ndarray, sampler_name: str | None = None):
-        """
-        Initialize the analyzer with samples and an optional sampler name.
-        """
-        self.samples = samples
-        self.sampler_name = sampler_name
 
     def plot_projection(self, rng_seed: int = None):
         # Get the dimension of the samples
@@ -202,7 +201,7 @@ class SamplesAnalyzer:
         # Plot the samples
 
         plt.plot(projected_samples[:, 0], projected_samples[:, 1], "+")
-        plt.title(f"Samples projected onto a plane orthogonal to {ref_vector}")
+        plt.title(f"Samples projected onto a plane orthogonal to {ref_vector_idx}-th vector")
         plt.xlabel("Projected dimension 1")
         plt.ylabel("Projected dimension 2")
         plt.show()

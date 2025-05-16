@@ -1,8 +1,8 @@
-import inspect
 import importlib
+import inspect
 import pydoc
-import types
 import re
+import types
 
 
 def extract_full_docs(module_name, output_file="module_docs.txt", max_depth=2):
@@ -51,11 +51,7 @@ def extract_full_docs(module_name, output_file="module_docs.txt", max_depth=2):
 
 
 # Example usage:
-
-
-name = "polytopewalk"
-extension = ".txt"
-
-
 if __name__ == "__main__":
+    name = "polytopewalk"
+    extension = ".txt"
     extract_full_docs(name, output_file=f"{name}_doc{extension}", max_depth=5)
