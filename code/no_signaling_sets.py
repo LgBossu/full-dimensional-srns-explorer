@@ -148,8 +148,12 @@ class NoSignalingSet(BehaviorSet):
 
 
 class ShortRangeNoSignalingSet(BehaviorSet):
-    def __init__(self, delta: int, m: int, measured_behavior: behaviors.Behavior):
+    def __init__(self, delta: int, m: int, measured_behavior: behaviors.RoutedBehavior):
         super().__init__(delta, m)
+        assert (
+            self.delta == measured_behavior.delta
+        ), "Declared delta does not match measured behavior delta"
+        assert self.m == measured_behavior.m, "Declared m does not match measured behavior m"
 
     def express_as_function_of_q(self) -> np.ndarray:
         """
