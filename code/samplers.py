@@ -25,7 +25,7 @@ class Sampler(ABC):
         pass
 
 
-class NoSignalingSampler:
+class NoSignalingSampler(Sampler):
     def __init__(self, delta: int, m: int, z: bool = True):
         """
         Initialize the sampler.
@@ -102,7 +102,11 @@ class NoSignalingSampler:
         return samples_og
 
     def sample(self) -> RoutedBehavior:
-        return RoutedBehavior(self.sample_multiple(number_of_samples=1, number_to_burn=500)[0])
+        return RoutedBehavior(
+            delta=self.delta,
+            m=self.m,
+            vector=self.sample_multiple(number_of_samples=1, number_to_burn=500)[0],
+        )
 
 
 class SamplesAnalyzer:
@@ -110,10 +114,12 @@ class SamplesAnalyzer:
     A class to compute statistics on samples distributions.
     """
 
-    def __init__(self, samples: np.ndarray, sampler_name: str | None = None):
+    def __init__(self, delta: int, m: int, samples: np.ndarray, sampler_name: str | None = None):
         """
         Initialize the analyzer with samples and an optional sampler name.
         """
+        self.delta = delta
+        self.m = m
         self.samples = samples
         self.sampler_name = sampler_name
 
@@ -130,7 +136,7 @@ class SamplesAnalyzer:
         for vec in tqdm(self.samples, desc="Checking samples"):
             all_samples_count += 1
             # Check that the point is in the no-signaling set
-            behavior = RoutedBehavior(vec)
+            behavior = RoutedBehavior(delta=self.delta, m=self.m, vector=vec)
             if not behavior.is_no_signaling():
                 all_samples_good = False
                 bad_samples_count += 1
@@ -315,7 +321,7 @@ if __name__ == "__main__":
     )
     sampler = NoSignalingSampler(delta, m)
     samples = sampler.sample_multiple(number_of_samples=10000, number_to_burn=1000)
-    analyzer = SamplesAnalyzer(samples)
+    analyzer = SamplesAnalyzer(delta, m, samples)
     analyzer.check_samples_are_no_signaling()
     analyzer.plot_projection()
     analyzer.analyze_local_uniformity()
