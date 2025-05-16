@@ -10,8 +10,8 @@ def routed_no_signaling_equations(delta: int, m: int) -> tuple[np.ndarray, np.nd
     Generate the no-signaling equations for the routed case.
     """
     # Polytope dimension
-    dim = 2 * (delta - 1) * m + (delta - 1) ** 2 * m**2
-    logger.debug(f"Polytope dimension: {dim}")
+    # dim = (2 * (delta - 1) * m) + ((delta - 1) ** 2 * m**2)
+    # logger.debug(f"Polytope dimension: {dim}")
 
     # Initialize the equations
     equations = []
@@ -67,4 +67,4 @@ def routed_no_signaling_equations(delta: int, m: int) -> tuple[np.ndarray, np.nd
     logger.debug(f"Right side shape: {right_side.shape}")
     logger.debug(f"Right side: {right_side}")
 
-    return equations, right_side, dim
+    return equations, right_side

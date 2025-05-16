@@ -158,7 +158,7 @@ class Behavior:
         matrix = self.get_matrix()
         return np.all(abs(np.sum(matrix, axis=1) - 1) < 1e-12)
 
-    def no_signaling(self):
+    def no_signaling(self, atol=1e-8):
         """
         Check if the behavior is no-signaling
         """
@@ -175,20 +175,42 @@ class Behavior:
         sum_over_a = sum_over_a.reshape(-1, self.m)
         logger.debug(f"Reshaped summed array shape: {sum_over_a.shape}")
         logger.debug(f"Reshaped summed array: {sum_over_a}")
-        a_no_signaling = np.all(sum_over_a == sum_over_a[:, [0]], axis=1)
+        a_checksum = np.abs(sum_over_a - sum_over_a[:, [0]]) < atol
+        a_no_signaling = np.all(a_checksum, axis=1)
+
+        if not np.all(a_no_signaling):
+            # Debugging violations in Alice's marginals
+            for i in range(a_checksum.shape[0]):
+                for j in range(1, self.m):  # compare to column 0
+                    if not a_checksum[i, j]:
+                        logger.warning(
+                            f"Alice no-signaling violated at index [{i}, {j}]: "
+                            + f"{sum_over_a[i, j]:.5f} vs {sum_over_a[i, 0]:.5f} (Δ={abs(sum_over_a[i, j] - sum_over_a[i, 0]):.2e})"  # noqa: E501
+                        )
 
         sum_over_b: np.ndarray = np.sum(summable, axis=2)
         sum_over_b = np.transpose(sum_over_b, (1, 3, 0, 2))
         sum_over_b = sum_over_b.reshape(-1, self.m)
-        b_no_signaling = np.all(sum_over_b == sum_over_b[:, [0]], axis=1)
+        b_checksum = np.abs(sum_over_b - sum_over_b[:, [0]]) < atol
+        b_no_signaling = np.all(b_checksum, axis=1)
+
+        if not np.all(b_no_signaling):
+            # Debugging violations in Bob's marginals
+            for i in range(b_checksum.shape[0]):
+                for j in range(1, self.m):  # compare to column 0
+                    if not b_checksum[i, j]:
+                        logger.warning(
+                            f"  Bob no-signaling violated at index [{i}, {j}]: "
+                            + f"{sum_over_b[i, j]:.5f} vs {sum_over_b[i, 0]:.5f} (Δ={abs(sum_over_b[i, j] - sum_over_b[i, 0]):.2e})"  # noqa: E501
+                        )
 
         return np.all(a_no_signaling) and np.all(b_no_signaling)
 
     def is_normalized(self):
         return self.positivity() and self.normalization()
 
-    def is_no_signaling(self):
-        return self.positivity() and self.normalization() and self.no_signaling()
+    def is_no_signaling(self, atol=1e-8):
+        return self.positivity() and self.normalization() and self.no_signaling(atol=atol)
 
 
 # COORDINATE UTILS
@@ -230,11 +252,13 @@ SR_pr_box = np.array(
 pr_box = Behavior(np.concatenate((SR_pr_box, SR_pr_box), axis=0))
 
 
-def display_ns_test_arrays():
+def display_ns_test_arrays(sum_over_b: bool = False, verbose: bool = False):
     """
     Only serves to show the effects on an array of the operations used in Behavior.no_signaling()
     """
-    check = np.array(
+    axis_of_sum = 2 if sum_over_b else 1
+
+    check: np.ndarray = np.array(
         [
             [
                 [
@@ -262,13 +286,15 @@ def display_ns_test_arrays():
 
     check = check.reshape(2, 2, 2, 2, 2)
 
-    print(check.shape)
-    print(check)
-    print("\n------\n")
-    print(check.reshape(2, 4, 4))
-    print("\n------\n")
-    print(check.sum(axis=1))
-    print("\n------\n")
-    print((check.sum(axis=1)).transpose(1, 3, 0, 2))
-    print("\n------\n")
+    if verbose:
+        print(check.shape)
+        print(check)
+        print("\n------\n")
+        print(check.reshape(2, 4, 4))
+        print("\n------\n")
+        print(check.sum(axis=axis_of_sum))
+        print("\n------\n")
+        print("")
+        print((check.sum(axis=1)).transpose(1, 3, 0, 2))
+        print("\n------\n")
     print((check.sum(axis=1)).transpose(1, 3, 0, 2).reshape(-1, 2))
