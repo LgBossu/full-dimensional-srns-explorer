@@ -260,7 +260,11 @@ def routed_indices_to_index(a, b, x, y, z, delta: int = 2, m: int = 2):
 # Certain typical behaviors
 
 # The maximally mixed state over the experiment space
-completely_mixed_behavior = Behavior((1 / 4) * np.ones(32))
+completely_mixed_behavior = RoutedBehavior(
+    delta=2,
+    m=2,
+    vector=(1 / 4) * np.ones(32),
+)
 
 # The usual (2,2,2) PR box
 SR_pr_box = np.array(
@@ -269,7 +273,11 @@ SR_pr_box = np.array(
 
 # The PR box in the experiment space : p(ab|xy) is assumed to be
 # independent of the value of z
-pr_box = Behavior(np.concatenate((SR_pr_box, SR_pr_box), axis=0))
+pr_box = RoutedBehavior(
+    delta=2,
+    m=2,
+    vector=np.concatenate((SR_pr_box, SR_pr_box), axis=0),
+)
 
 
 def display_ns_test_arrays(sum_over_b: bool = False, verbose: bool = False):
@@ -351,6 +359,12 @@ if __name__ == "__main__":
 
     check = check.reshape(2, 4, 4)
 
-    check = Behavior(check)
+    check = RoutedBehavior(
+        delta=2,
+        m=2,
+        vector=check.reshape(
+            32,
+        ),
+    )
     print(check)
     print(check.get_vector())

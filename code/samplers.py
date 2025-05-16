@@ -30,6 +30,8 @@ class UniformNormalizedSampler:
     A sampler that generates uniformly distributed samples in the unit simplex (general behaviors).
     """
 
+    # Class is UNUSED and is considered DEPRECATED for the time being.
+
     def __init__(self, delta: int, m: int, z: bool):
         """
         Initialize the sampler.
