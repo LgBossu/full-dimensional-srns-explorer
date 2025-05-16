@@ -84,7 +84,7 @@ class Behavior:
 
     # EQUALITY
     def compare_array(self, other):
-        logger.debug(f"Checking if variable {other} can be treated as a Behavior for comparisons")
+        logger.trace(f"Checking if variable {other} can be treated as a Behavior for comparisons")
 
         if isinstance(other, Behavior):
             return other
@@ -164,17 +164,17 @@ class Behavior:
         """
         summable = np.reshape(self.behavior_vector, (2, self.delta, self.delta, self.m, self.m))
 
-        logger.debug(f"Summable array shape: {summable.shape}")
-        logger.debug(f"Summable array: {summable}")
+        logger.trace(f"Summable array shape: {summable.shape}")
+        logger.trace(f"Summable array: {summable}")
         sum_over_a: np.ndarray = np.sum(summable, axis=1)
-        logger.debug(f"Shape of summed array: {sum_over_a.shape}")
-        logger.debug(f"Summed array: {sum_over_a}")
+        logger.trace(f"Shape of summed array: {sum_over_a.shape}")
+        logger.trace(f"Summed array: {sum_over_a}")
         sum_over_a = np.moveaxis(sum_over_a, 2, -1)
-        # logger.debug(f"Transposed summed array shape: {sum_over_a.shape}")
-        logger.debug(f"Reordered summed array: {sum_over_a}")
+        # logger.trace(f"Transposed summed array shape: {sum_over_a.shape}")
+        logger.trace(f"Reordered summed array: {sum_over_a}")
         sum_over_a = sum_over_a.reshape(2 * self.delta * self.m, self.m)
-        logger.debug(f"Reshaped summed array shape: {sum_over_a.shape}")
-        logger.debug(f"Reshaped summed array: {sum_over_a}")
+        logger.trace(f"Reshaped summed array shape: {sum_over_a.shape}")
+        logger.trace(f"Reshaped summed array: {sum_over_a}")
         a_checksum = np.abs(sum_over_a - sum_over_a[:, [0]]) < atol
         a_no_signaling = np.all(a_checksum, axis=1)
 

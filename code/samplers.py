@@ -1,3 +1,4 @@
+import sys
 from abc import ABC, abstractmethod
 
 import matplotlib.pyplot as plt
@@ -6,7 +7,7 @@ import polytopewalk as pw
 import scipy as sp
 from behaviors import Behavior
 from loguru import logger
-from no_signaling_set import routed_no_signaling_equations
+from no_signaling_sets import NoSignalingSet
 from scipy.spatial.distance import pdist
 from sklearn.neighbors import NearestNeighbors
 from tqdm import tqdm
@@ -53,7 +54,7 @@ class UniformNormalizedSampler:
 
 
 class NoSignalingSampler:
-    def __init__(self, delta: int, m: int, z: bool):
+    def __init__(self, delta: int, m: int, z: bool = True):
         """
         Initialize the sampler.
         """
@@ -70,16 +71,17 @@ class NoSignalingSampler:
     ) -> np.ndarray:
         # Get the equations of the no-signaling set
         logger.debug("Getting the equations of the no-signaling set")
-        A, b = routed_no_signaling_equations(delta=self.delta, m=self.m)
+        ns_set = NoSignalingSet(delta=self.delta, m=self.m)
+        A, b = ns_set.get_equations()
 
         logger.debug(f"Equations shape: {A.shape}")
 
         # Rank reduce the matrix
         logger.debug("Rank reducing the matrix")
-        U, s, Vh = sp.linalg.svd(A)
+        U, s, _ = sp.linalg.svd(A)
         rank = np.sum(s > 1e-10)
-        A_reduced = s[:rank, None] * Vh[:rank, :]  # shape: (rank, n)
-        b_reduced = (U.T[:rank] @ b).reshape(-1, 1)  # shape: (rank, 1)
+        A_reduced = U[:, :rank].T @ A
+        b_reduced = U[:, :rank].T @ b
 
         # Change to sparse representation
         logger.debug("Changing to sparse representation")
@@ -200,19 +202,24 @@ class SamplesAnalyzer:
 
         # Plot the samples
 
-        plt.plot(projected_samples[:, 0], projected_samples[:, 1], "+")
-        plt.title(f"Samples projected onto a plane orthogonal to {ref_vector_idx}-th vector")
-        plt.xlabel("Projected dimension 1")
-        plt.ylabel("Projected dimension 2")
-        plt.show()
+        fig, axs = plt.subplots(1, 2, figsize=(14, 6))
 
-        # Plot a 2D histogram (heatmap) of the projected samples
-        plt.figure(figsize=(8, 6))
-        plt.hist2d(projected_samples[:, 0], projected_samples[:, 1], bins=100, cmap="viridis")
-        plt.colorbar(label="Sample count")
-        plt.xlabel("Projected dimension 1")
-        plt.ylabel("Projected dimension 2")
-        plt.title("Sampling density heatmap on projected plane")
+        # Scatter plot
+        axs[0].plot(projected_samples[:, 0], projected_samples[:, 1], "+")
+        axs[0].set_title(f"Samples projected onto a plane orthogonal to {ref_vector_idx}-th vector")
+        axs[0].set_xlabel("Projected dimension 1")
+        axs[0].set_ylabel("Projected dimension 2")
+
+        # 2D histogram (heatmap)
+        h = axs[1].hist2d(
+            projected_samples[:, 0], projected_samples[:, 1], bins=100, cmap="viridis"
+        )
+        plt.colorbar(h[3], ax=axs[1], label="Sample count")
+        axs[1].set_xlabel("Projected dimension 1")
+        axs[1].set_ylabel("Projected dimension 2")
+        axs[1].set_title("Sampling density heatmap on projected plane")
+
+        plt.tight_layout()
         plt.show()
 
     def global_analyze_sampling(self, plot=False, log=True):
@@ -321,3 +328,22 @@ class SamplesAnalyzer:
             plt.show()
 
         return stats
+
+
+if __name__ == "__main__":
+    # Example usage
+    delta = 2
+    m = 2
+    logger.remove()
+    logger.add(
+        sink=sys.stdout,
+        format="<level>{level:<10} | {message}</>",
+        level="INFO",
+        colorize=True,
+    )
+    sampler = NoSignalingSampler(delta, m)
+    samples = sampler.sample_multiple(number_of_samples=10000, number_to_burn=1000)
+    analyzer = SamplesAnalyzer(samples)
+    analyzer.check_samples_are_no_signaling()
+    analyzer.plot_projection()
+    analyzer.analyze_local_uniformity()
