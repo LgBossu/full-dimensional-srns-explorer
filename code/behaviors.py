@@ -24,7 +24,7 @@ class Behavior:
         :param behavior_vector: The behavior vector
         :return: The behavior matrix
         """
-        return np.reshape(behavior_vector, (2, 4, 4))
+        return np.reshape(behavior_vector, (2, self.delta**2, self.m**2))
 
     # ... and vice versa
     def behavior_matrix_to_vector(self, behavior_matrix):
@@ -33,7 +33,7 @@ class Behavior:
         :param behavior_matrix: The behavior matrix
         :return: The behavior vector
         """
-        return np.reshape(behavior_matrix, (32,))
+        return np.reshape(behavior_matrix, (2 * self.delta**2 * self.m**2,))
 
     # CONSTRUCTOR
 
@@ -67,7 +67,7 @@ class Behavior:
         return self.behavior_vector_to_matrix(self.behavior_vector)
 
     def get_all_indices(self):
-        return np.array([self.index_to_indices(i) for i in range(32)])
+        return np.array([self.index_to_indices(i) for i in range(2 * self.delta**2 * self.m**2)])
 
     # STRING REPRESENTATIONS
 
@@ -234,7 +234,8 @@ pr_box = Behavior(np.concatenate((SR_pr_box, SR_pr_box), axis=0))
 
 def display_ns_test_arrays(sum_over_b: bool = False, verbose: bool = False):
     """
-    Only serves to show the effects on an array of the operations used in Behavior.no_signaling()
+    Only serves to show the effects on an array of the operations used in Behavior.no_signaling(),
+    with delta=2 and m=2.
     """
     axis_of_sum = 2 if sum_over_b else 1
     axis_to_move = 0 if sum_over_b else 2

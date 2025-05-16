@@ -22,6 +22,7 @@ polytopewalk = "^1.0.24"
 nbstripout = "^0.8.1"
 matplotlib = "^3.10.3"
 scikit-learn = "^1.6.1"
+tqdm = "^4.67.1"
 
 [tool.mypy]
 python_version = "3.10"
