@@ -24,7 +24,7 @@ class Behavior:
         :param behavior_vector: The behavior vector
         :return: The behavior matrix
         """
-        return np.reshape(behavior_vector, (2, self.delta**2, self.m**2))
+        return np.reshape(behavior_vector, self.matrix_shape)
 
     # ... and vice versa
     def behavior_matrix_to_vector(self, behavior_matrix):
@@ -33,7 +33,7 @@ class Behavior:
         :param behavior_matrix: The behavior matrix
         :return: The behavior vector
         """
-        return np.reshape(behavior_matrix, (2 * self.delta**2 * self.m**2,))
+        return np.reshape(behavior_matrix, self.vector_shape)
 
     # CONSTRUCTOR
 
@@ -280,3 +280,37 @@ def display_ns_test_arrays(sum_over_b: bool = False, verbose: bool = False):
         print(np.moveaxis(check.sum(axis=axis_of_sum), axis_to_move, -1))
         print("\n------\n")
     print(np.moveaxis(check.sum(axis=axis_of_sum), axis_to_move, -1).reshape(final_shape))
+
+
+if __name__ == "__main__":
+    check: np.ndarray = np.array(
+        [
+            [
+                [
+                    ["p0000S", "p0001S", "p0010S", "p0011S"],
+                    ["p0100S", "p0101S", "p0110S", "p0111S"],
+                ],
+                [
+                    ["p1000S", "p1001S", "p1010S", "p1011S"],
+                    ["p1100S", "p1101S", "p1110S", "p1111S"],
+                ],
+            ],
+            [
+                [
+                    ["p0000L", "p0001L", "p0010L", "p0011L"],
+                    ["p0100L", "p0101L", "p0110L", "p0111L"],
+                ],
+                [
+                    ["p1000L", "p1001L", "p1010L", "p1011L"],
+                    ["p1100L", "p1101L", "p1110L", "p1111L"],
+                ],
+            ],
+        ],
+        dtype=object,
+    )
+
+    check = check.reshape(2, 4, 4)
+
+    check = Behavior(check)
+    print(check)
+    print(check.get_vector())

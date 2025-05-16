@@ -146,8 +146,34 @@ class NoSignalingSet(BehaviorSet):
 
 
 class ShortRangeNoSignalingSet(BehaviorSet):
-    def __init__(self, delta: int, m: int):
+    def __init__(self, delta: int, m: int, measured_behavior: behaviors.Behavior):
         super().__init__(delta, m)
+
+    def express_as_function_of_q(self) -> np.ndarray:
+        """
+        Returns the matrix M which,
+        given a vector q of coordinates (q(ab|xy), q(a beta|x)),
+        will return the corresponding short-range no-signaling behavior p as:
+        p = f(q) = M @ q
+        """
+        # Dimension of the short-path q vector
+        dim_q_s = self.delta**2 * self.m**2
+        # Dimension of the long-path q vector
+        dim_q_L = self.m * self.delta ** (self.m + 1)
+        # Dimension of q
+        dim_q = dim_q_s + dim_q_L
+        # Dimension of p, the classical routed behavior dim
+        dim_p = 2 * self.delta**2 * self.m**2
+
+        # Initialize the matrix M
+        M = np.zeros((dim_p, dim_q))
+
+        # The first dim_q_s block enforces q_s = p(z=S)
+        M[:dim_q_s, :dim_q_s] = np.eye(dim_q_s)
+
+        # The second dim_q_L block enforces p(z=L) = sum_beta,beta_y=b q(a beta|x)
+
+        return M
 
     def get_equations(self) -> tuple[np.ndarray, np.ndarray]:
         pass
@@ -160,62 +186,4 @@ def routed_no_signaling_equations(delta: int, m: int) -> tuple[np.ndarray, np.nd
     logger.warning(
         "This function is deprecated. Use NoSignalingSet.routed_no_signaling_equations instead, or a dedicated class."  # noqa: E501
     )
-    # Polytope dimension
-    # dim = (2 * (delta - 1) * m) + ((delta - 1) ** 2 * m**2)
-    # logger.trace(f"Polytope dimension: {dim}")
-
-    # Initialize the equations
-    equations = []
-    right_side = []
-
-    # Normalization equations
-    for x, y, z in [(i, j, k) for i in range(m) for j in range(m) for k in [0, 1]]:
-        eq = np.zeros(2 * delta**2 * m**2)
-        for a, b in [(i, j) for i in range(delta) for j in range(delta)]:
-            eq[behaviors.routed_indices_to_index(a, b, x, y, z, delta, m)] = 1
-        equations.append(eq)
-        right_side.append(1)
-        logger.trace(f"Normalization equation: {eq} = 1, xyz = {x, y, z}")
-
-    # No-signaling equations
-    # From Alice to Bob
-    for b, y, z in [(i, j, k) for i in range(delta) for j in range(m) for k in [0, 1]]:
-        for x in range(m):
-            eq = np.zeros(2 * delta**2 * m**2)
-            if x == 0:
-                continue
-            else:
-                for a in range(delta):
-                    eq[behaviors.routed_indices_to_index(a, b, x, y, z, delta, m)] = -1
-                    eq[behaviors.routed_indices_to_index(a, b, 0, y, z, delta, m)] = 1
-                equations.append(eq)
-                right_side.append(0)
-                logger.trace(f"No-signaling equation: {eq} = 0, bxyz = {b, x, y, z}")
-    # From Bob to Alice
-    for a, x in [(i, j) for i in range(delta) for j in range(m)]:
-        for y, z in [(j, k) for j in range(m) for k in [0, 1]]:
-            eq = np.zeros(2 * delta**2 * m**2)
-            if (y, z) == (0, 0):
-                continue
-            else:
-                for b in range(delta):
-                    eq[behaviors.routed_indices_to_index(a, b, x, y, z, delta, m)] = -1
-                    eq[behaviors.routed_indices_to_index(a, b, x, 0, 0, delta, m)] = 1
-                equations.append(eq)
-                right_side.append(0)
-                logger.trace(f"No-signaling equation: {eq} = 0, axyz = {a, x, y, z}")
-
-    # Convert to numpy arrays
-    equations = np.array(equations)
-    right_side = np.array(right_side)
-
-    # TODO : reduce the rank of the equations matrix to equal dim(B) - dim(NS) or smth like that
-
-    # Log the shapes and values of the equations and right side
-    logger.trace(f"Delta: {delta}, m: {m}")
-    logger.trace(f"Equations shape: {equations.shape}")
-    logger.trace(f"Equations: {equations}")
-    logger.trace(f"Right side shape: {right_side.shape}")
-    logger.trace(f"Right side: {right_side}")
-
-    return equations, right_side
+    raise NotImplementedError("Deprecated. Turn to dedicated classes instead.")
