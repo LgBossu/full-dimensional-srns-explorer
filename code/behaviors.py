@@ -175,11 +175,13 @@ class RoutedBehavior(Behavior):
         super().__init__(delta, m, vector)
 
         self.vector_shape = (2 * delta**2 * m**2,)
-        assert (
-            self.behavior_vector.shape == (2 * delta**2 * m**2,)
-        ), f"Invalid shape {self.behavior_vector.shape}. Expected {self.vector_shape}, to match declared values (delta={self.delta}, m={self.m})."  # noqa: E501
 
         self.matrix_shape = (2, delta**2, m**2)
+
+        if vector is not None:
+            assert (
+                self.behavior_vector.shape == (2 * delta**2 * m**2,)
+            ), f"Invalid shape {self.behavior_vector.shape}. Expected {self.vector_shape}, to match declared values (delta={self.delta}, m={self.m})."  # noqa: E501
 
     def behavior_vector_to_matrix(self, behavior_vector):
         return np.reshape(behavior_vector, self.matrix_shape)
@@ -291,11 +293,13 @@ class LatentSRNSBehavior(Behavior):
         self.dim_q_L = self.m * self.delta ** (self.m + 1)
         self.dim_q = self.dim_q_s + self.dim_q_L
         self.vector_shape = (self.dim_q,)
-        assert (
-            self.behavior_vector.shape == (self.dim_q,)
-        ), f"Invalid shape {self.behavior_vector.shape}. Expected {self.vector_shape}, to match declared values (delta={self.delta}, m={self.m})."  # noqa: E501
 
         self.matrix_shapes = [(self.delta**2, self.m**2), (self.delta ** (self.m + 1), self.m)]
+
+        if vector is not None:
+            assert (
+                self.behavior_vector.shape == (self.dim_q,)
+            ), f"Invalid shape {self.behavior_vector.shape}. Expected {self.vector_shape}, to match declared values (delta={self.delta}, m={self.m})."  # noqa: E501
 
     def behavior_vector_to_matrix(self, behavior_vector):
         q_short = behavior_vector[: self.dim_q_s]
