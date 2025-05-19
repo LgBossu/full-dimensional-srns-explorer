@@ -193,12 +193,16 @@ class ShortRangeNoSignalingSet(BehaviorSet):
         for line_idx in range(self.delta**2 * self.m**2, dim_p):
             # We loop over all the lines of the second block,
             # i.e. coordinates of p(z=L)
-            a, b, x, y, _ = behaviors.routed_index_to_indices(line_idx, delta=self.delta, m=self.m)
+            a, b, x, y, _ = behaviors.short_range_index_to_indices(
+                line_idx, delta=self.delta, m=self.m
+            )
 
             for beta in [tuple(l_beta[:y] + [b] + l_beta[y:]) for l_beta in lacking_betas]:
                 M[
                     line_idx,
-                    behaviors.routed_indices_to_index((a, beta, x), delta=self.delta, m=self.m),
+                    behaviors.short_range_indices_to_index(
+                        (a, beta, x), delta=self.delta, m=self.m
+                    ),
                 ] = 1
                 # TODO : if needed, there is room for optimization here :
                 # do not call short_range_index_to_indices for each beta,
