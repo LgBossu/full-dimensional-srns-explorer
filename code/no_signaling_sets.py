@@ -238,12 +238,12 @@ class ShortRangeNoSignalingSet(BehaviorSet):
         ):
             # TODO : may add tqdm in such places to check progress in real time for greater dims
             row_eq = np.zeros(dim_q)
-            for b, y in [(i, j) for i in range(self.delta) for j in range(self.m)]:
-                # Given a,x,z=S, we loop over all b,y coordinates
+            for b in [i for i in range(self.delta)]:
+                # Given a,x,y=0,z=S, we loop over all b coordinates
                 # to compute the reference q(a|x)
                 row_eq[
                     behaviors.short_range_indices_to_index(
-                        (a, b, x, y, 0), delta=self.delta, m=self.m
+                        (a, b, x, 0, 0), delta=self.delta, m=self.m
                     )
                 ] = 1
             for beta in values_of_beta:
