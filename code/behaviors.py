@@ -249,14 +249,14 @@ class RoutedBehavior(Behavior):
         sum_over_a = np.moveaxis(sum_over_a, 2, -1)
         # Move the x axis to the end
         sum_over_a = sum_over_a.reshape(2 * self.delta * self.m, self.m)
-        # Reshape to have every row as a different x
+        # Reshape to have every row as a different p(b|yz)
 
         sum_over_b: np.ndarray = np.sum(summable, axis=2)
         sum_over_b = np.moveaxis(sum_over_b, 0, -1)
         # Move the z axis to the end
         # The y axis is already at the end
         sum_over_b = sum_over_b.reshape(self.delta * self.m, 2 * self.m)
-        # Reshape to have every row as a different (y,z)
+        # Reshape to have every row as a different p(a|x)
 
         if _debug:
             return (
@@ -409,10 +409,10 @@ class LatentSRNSBehavior(Behavior):
         sum_over_a_short = np.moveaxis(sum_over_a_short, 1, -1)
         # Move the x axis to the end
         sum_over_a_short = sum_over_a_short.reshape(self.delta * self.m, self.m)
-        # Reshape to have every row as a different x
+        # Reshape to have every row as a different q(b|yS)
 
         sum_over_a_long = np.sum(q_long.reshape(self.delta, self.delta**self.m, self.m), axis=0)
-        # Array already has correct shape : one row per x
+        # Array already has correct shape : one row per q(beta|L)
 
         # No-signaling condition on Bob's side
         # With the short path, we have:
@@ -424,6 +424,7 @@ class LatentSRNSBehavior(Behavior):
         # Now we must check that for every (a,x), q(a|x) is well defined,
         # ie independent of the value of z
         sum_over_b = np.column_stack((sum_over_b_short, sum_over_b_long))
+        # Every row is now a different q(a|x)
 
         if _debug:
             return (
@@ -490,57 +491,6 @@ pr_box = RoutedBehavior(
 )
 
 
-def display_ns_test_arrays(sum_over_b: bool = False, verbose: bool = False):
-    """
-    Only serves to show the effects on an array of the operations used in Behavior.no_signaling(),
-    with delta=2 and m=2.
-    """
-    # OBSOLETE WITH THE _DEBUG ARGUMENT ADDED TO NO_SIGNALING CHECKS
-    axis_of_sum = 2 if sum_over_b else 1
-    axis_to_move = 0 if sum_over_b else 2
-    final_shape = (4, 4) if sum_over_b else (8, 2)
-
-    check: np.ndarray = np.array(
-        [
-            [
-                [
-                    ["p0000S", "p0001S", "p0010S", "p0011S"],
-                    ["p0100S", "p0101S", "p0110S", "p0111S"],
-                ],
-                [
-                    ["p1000S", "p1001S", "p1010S", "p1011S"],
-                    ["p1100S", "p1101S", "p1110S", "p1111S"],
-                ],
-            ],
-            [
-                [
-                    ["p0000L", "p0001L", "p0010L", "p0011L"],
-                    ["p0100L", "p0101L", "p0110L", "p0111L"],
-                ],
-                [
-                    ["p1000L", "p1001L", "p1010L", "p1011L"],
-                    ["p1100L", "p1101L", "p1110L", "p1111L"],
-                ],
-            ],
-        ],
-        dtype=object,
-    )
-
-    check = check.reshape(2, 2, 2, 2, 2)
-
-    if verbose:
-        print(check.reshape(2, 4, 4))
-        print("\n------\n")
-        print(check.shape)
-        print("\n------\n")
-        print(check.sum(axis=axis_of_sum))
-        print("\n------\n")
-        print("")
-        print(np.moveaxis(check.sum(axis=axis_of_sum), axis_to_move, -1))
-        print("\n------\n")
-    print(np.moveaxis(check.sum(axis=axis_of_sum), axis_to_move, -1).reshape(final_shape))
-
-
 if __name__ == "__main__":
     check: np.ndarray = np.array(
         [
@@ -570,7 +520,7 @@ if __name__ == "__main__":
 
     check = check.reshape(2, 4, 4)
 
-    check = RoutedBehavior(
+    check: RoutedBehavior = RoutedBehavior(
         delta=2,
         m=2,
         vector=check.reshape(
@@ -579,7 +529,13 @@ if __name__ == "__main__":
     )
     # print(check)
     # print(check.get_vector())
-    print(*check.no_signaling(_debug=True))
+    sum_over_a, sum_over_b = check.no_signaling(_debug=True)
+    print("sum_over_a")
+    print(sum_over_a)
+    print()
+    print("sum_over_b")
+    print(sum_over_b)
+    print()
 
     print("\n\n------\n\n")
 
@@ -621,8 +577,11 @@ if __name__ == "__main__":
     # print(check_latent.get_vector())
     # print(check_latent.get_matrix_element((1, 1, (1, 0), 1)))
     sum_over_a_short, sum_over_a_long, sum_over_b = check_latent.no_signaling(_debug=True)
+    print("sum_over_a_short (p(b|yS))")
     print(sum_over_a_short)
     print()
+    print("sum_over_a_long (p(beta|L))")
     print(sum_over_a_long)
     print()
+    print("sum_over_b (p(a|x))")
     print(sum_over_b)
