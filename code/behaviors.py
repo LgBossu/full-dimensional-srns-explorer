@@ -233,36 +233,42 @@ class RoutedBehavior(Behavior):
 
         return None
 
-    def normalization(self, atol=1e-10):
+    def normalization(self, atol=1e-10, _debug: bool = False):
         """
         Check if the behavior is normalized
         """
         matrix = self.get_matrix()
+        if _debug:
+            return np.sum(matrix, axis=1)
         return np.all(abs(np.sum(matrix, axis=1) - 1) < atol)
 
-    def no_signaling(self, atol=1e-10):
+    def no_signaling(self, atol=1e-10, _debug: bool = False):
         summable = np.reshape(self.behavior_vector, (2, self.delta, self.delta, self.m, self.m))
 
-        logger.trace(f"Summable array shape: {summable.shape}")
-        logger.trace(f"Summable array: {summable}")
         sum_over_a: np.ndarray = np.sum(summable, axis=1)
-        logger.trace(f"Shape of summed array: {sum_over_a.shape}")
-        logger.trace(f"Summed array: {sum_over_a}")
         sum_over_a = np.moveaxis(sum_over_a, 2, -1)
-        # logger.trace(f"Transposed summed array shape: {sum_over_a.shape}")
-        logger.trace(f"Reordered summed array: {sum_over_a}")
+        # Move the x axis to the end
         sum_over_a = sum_over_a.reshape(2 * self.delta * self.m, self.m)
-        logger.trace(f"Reshaped summed array shape: {sum_over_a.shape}")
-        logger.trace(f"Reshaped summed array: {sum_over_a}")
-        a_checksum = np.abs(sum_over_a - sum_over_a[:, [0]]) < atol
-        a_no_signaling = np.all(a_checksum, axis=1)
+        # Reshape to have every row as a different x
 
         sum_over_b: np.ndarray = np.sum(summable, axis=2)
         sum_over_b = np.moveaxis(sum_over_b, 0, -1)
+        # Move the z axis to the end
+        # The y axis is already at the end
         sum_over_b = sum_over_b.reshape(self.delta * self.m, 2 * self.m)
-        b_checksum = np.abs(sum_over_b - sum_over_b[:, [0]]) < atol
-        b_no_signaling = np.all(b_checksum, axis=1)
+        # Reshape to have every row as a different (y,z)
 
+        if _debug:
+            return (
+                sum_over_a,
+                sum_over_b,
+            )
+
+        a_checksum = np.abs(sum_over_a - sum_over_a[:, [0]]) < atol
+        b_checksum = np.abs(sum_over_b - sum_over_b[:, [0]]) < atol
+
+        a_no_signaling = np.all(a_checksum, axis=1)
+        b_no_signaling = np.all(b_checksum, axis=1)
         return np.all(a_no_signaling) and np.all(b_no_signaling)
 
 
@@ -381,19 +387,61 @@ class LatentSRNSBehavior(Behavior):
 
         return None
 
-    def normalization(self, atol=1e-10):
+    def normalization(self, atol=1e-10, _debug: bool = False):
         """
         Check if the behavior is normalized
         """
         q_short, q_long = self.behavior_vector_to_matrix(self.behavior_vector)
+        if _debug:
+            return np.sum(q_short, axis=1), np.sum(q_long, axis=1)
+            # Check the aspect of the sum to verify we check the correct sum
         return np.all(abs(np.sum(q_short, axis=1) - 1) < atol) and np.all(
             abs(np.sum(q_long, axis=1) - 1) < atol
         )
 
-    def no_signaling(self, atol=1e-10):
+    def no_signaling(self, atol=1e-10, _debug: bool = False):
         # TODO: Implement the no-signaling condition for the latent behavior
-        raise NotImplementedError(
-            "No signaling condition for the latent behavior is not implemented yet."
+        q_short, q_long = self.behavior_vector_to_matrix(self.behavior_vector)
+
+        # No-signaling condition on Alice's side
+        # ie : sum_a q(ab|xyz) = q(b|yz)/q(beta|z)
+        sum_over_a_short = np.sum(q_short.reshape(self.delta, self.delta, self.m, self.m), axis=0)
+        sum_over_a_short = np.moveaxis(sum_over_a_short, 1, -1)
+        # Move the x axis to the end
+        sum_over_a_short = sum_over_a_short.reshape(self.delta * self.m, self.m)
+        # Reshape to have every row as a different x
+
+        sum_over_a_long = np.sum(q_long.reshape(self.delta, self.delta**self.m, self.m), axis=0)
+        # Array already has correct shape : one row per x
+
+        # No-signaling condition on Bob's side
+        # With the short path, we have:
+        sum_over_b_short = np.sum(q_short.reshape(self.delta, self.delta, self.m, self.m), axis=1)
+        sum_over_b_short = sum_over_b_short.reshape(self.delta * self.m, self.m)
+        # With the long path, we have:
+        sum_over_b_long = np.sum(q_long.reshape(self.delta, self.delta**self.m, self.m), axis=1)
+        sum_over_b_long = sum_over_b_long.reshape(self.delta * self.m)
+        # Now we must check that for every (a,x), q(a|x) is well defined,
+        # ie independent of the value of z
+        sum_over_b = np.column_stack((sum_over_b_short, sum_over_b_long))
+
+        if _debug:
+            return (
+                sum_over_a_short,
+                sum_over_a_long,
+                sum_over_b,
+            )
+
+        a_checksum_short = np.abs(sum_over_a_short - sum_over_a_short[:, [0]]) < atol
+        a_checksum_long = np.abs(sum_over_a_long - sum_over_a_long[:, [0]]) < atol
+        b_checksum = np.abs(sum_over_b - sum_over_b[:, [0]]) < atol
+
+        a_no_signaling_short = np.all(a_checksum_short, axis=1)
+        a_no_signaling_long = np.all(a_checksum_long, axis=1)
+        b_no_signaling = np.all(b_checksum, axis=1)
+
+        return (
+            np.all(a_no_signaling_short) and np.all(a_no_signaling_long) and np.all(b_no_signaling)
         )
 
 
@@ -417,21 +465,6 @@ def routed_indices_to_index(a, b, x, y, z, delta: int = 2, m: int = 2):
     In the routed setting, convert a set of indices to the corresponding 1-D index
     """
     return (z * (delta**2 * m**2)) + (a * (delta * m**2)) + (b * (m**2)) + (x * m) + y
-
-
-class _BehaviorCoordsConverter:
-    """
-    A class to facilitate the conversion of a behavior's coordinates
-    between vector and matrix representation.
-    """
-
-    # def __init__(self, delta: int, m: int, indexed_vect: np.ndarray, indexed_mat: np.ndarray):
-    #     super().__init__(delta, m, indexed_vect)
-    #     # self.indexed_mat = super()
-
-    # def get_corresponding_index(self, indices: tuple):
-
-    # TODO
 
 
 # Certain typical behaviors
@@ -462,6 +495,7 @@ def display_ns_test_arrays(sum_over_b: bool = False, verbose: bool = False):
     Only serves to show the effects on an array of the operations used in Behavior.no_signaling(),
     with delta=2 and m=2.
     """
+    # OBSOLETE WITH THE _DEBUG ARGUMENT ADDED TO NO_SIGNALING CHECKS
     axis_of_sum = 2 if sum_over_b else 1
     axis_to_move = 0 if sum_over_b else 2
     final_shape = (4, 4) if sum_over_b else (8, 2)
@@ -543,8 +577,9 @@ if __name__ == "__main__":
             32,
         ),
     )
-    print(check)
-    print(check.get_vector())
+    # print(check)
+    # print(check.get_vector())
+    print(*check.no_signaling(_debug=True))
 
     print("\n\n------\n\n")
 
@@ -566,7 +601,8 @@ if __name__ == "__main__":
             ["p1(01)0L", "p1(01)1L"],
             ["p1(10)0L", "p1(10)1L"],
             ["p1(11)0L", "p1(11)1L"],
-        ]
+        ],
+        dtype=object,
     )
 
     check_latent_vect: np.ndarray = np.concatenate(
@@ -581,6 +617,12 @@ if __name__ == "__main__":
         m=2,
         vector=check_latent_vect,
     )
-    print(check_latent)
-    print(check_latent.get_vector())
-    print(check_latent.get_matrix_element((1, 1, (1, 0), 1)))
+    # print(check_latent)
+    # print(check_latent.get_vector())
+    # print(check_latent.get_matrix_element((1, 1, (1, 0), 1)))
+    sum_over_a_short, sum_over_a_long, sum_over_b = check_latent.no_signaling(_debug=True)
+    print(sum_over_a_short)
+    print()
+    print(sum_over_a_long)
+    print()
+    print(sum_over_b)
