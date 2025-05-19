@@ -182,7 +182,7 @@ class ShortRangeNoSignalingSet(BehaviorSet):
 
         # The second dim_q_L block enforces p(z=L) = sum_beta,beta_y=b q(a beta|x)
         lacking_betas = [
-            list(np.base_repr(i, self.delta).rjust(self.m, "0"))
+            list(np.base_repr(i, self.delta).rjust(self.m - 1, "0"))
             for i in range(self.delta ** (self.m - 1))
         ]  # Lacking betas holds the list of all beta tuples, with one missing coordinate
         # The missing coordinate is the one to be inserted with 'beta_y=b'
@@ -196,6 +196,7 @@ class ShortRangeNoSignalingSet(BehaviorSet):
             a, b, x, y, _ = behaviors.routed_index_to_indices(line_idx, delta=self.delta, m=self.m)
 
             for beta in [tuple(l_beta[:y] + [b] + l_beta[y:]) for l_beta in lacking_betas]:
+                logger.debug(f"a, beta, x, z = {a, beta, x, 1}")
                 M[
                     line_idx,
                     behaviors.short_range_indices_to_index(
@@ -284,8 +285,10 @@ class ShortRangeNoSignalingSet(BehaviorSet):
         filler_vector = np.zeros(n_last_rows)
 
         first_A_column = np.vstack(
-            (maximally_mixed_state - measured_behavior.get_vector()).reshape(-1, 1),
-            filler_vector.reshape(-1, 1),
+            (
+                (maximally_mixed_state - measured_behavior.get_vector()).reshape(-1, 1),
+                filler_vector.reshape(-1, 1),
+            )
         )
 
         A = np.hstack((first_A_column, base_matrix))

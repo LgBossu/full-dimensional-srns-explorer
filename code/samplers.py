@@ -42,42 +42,42 @@ class NoSignalingSampler(Sampler):
         number_to_burn: int = int(1e3),
     ) -> np.ndarray:
         # Get the equations of the no-signaling set
-        logger.debug("Getting the equations of the no-signaling set")
+        logger.trace("Getting the equations of the no-signaling set")
         ns_set = NoSignalingSet(delta=self.delta, m=self.m)
         A, b = ns_set.get_equations()
 
-        logger.debug(f"Equations shape: {A.shape}")
+        logger.trace(f"Equations shape: {A.shape}")
 
         # Rank reduce the matrix
-        logger.debug("Rank reducing the matrix")
+        logger.trace("Rank reducing the matrix")
         U, s, _ = sp.linalg.svd(A)
         rank = np.sum(s > 1e-10)
         A_reduced = U[:, :rank].T @ A
         b_reduced = U[:, :rank].T @ b
 
         # Change to sparse representation
-        logger.debug("Changing to sparse representation")
+        logger.trace("Changing to sparse representation")
         A_comp = sp.sparse.csc_matrix(A_reduced, dtype=np.float64)
         b_comp = b_reduced.astype(np.float64)
 
         # Get the polytopewalk objects
-        logger.debug("Getting the polytopewalk objects")
+        logger.trace("Getting the polytopewalk objects")
         # Walk
-        logger.debug("Getting the walk object")
+        logger.trace("Getting the walk object")
         walk = pw.sparse.SparseHitAndRun()
         # Facial reduction
-        logger.debug("Getting the facial reduction object")
+        logger.trace("Getting the facial reduction object")
         fr = pw.FacialReduction()
         fr_output = fr.reduce(A_comp, b_comp, k=A_comp.shape[1], sparse=True)
         # Center
-        logger.debug("Getting the center object")
+        logger.trace("Getting the center object")
         sc = pw.sparse.SparseCenter()
-        logger.debug(
+        logger.trace(
             f"Test center point: {sc.getInitialPoint(fr_output.sparse_A, fr_output.sparse_b, A_comp.shape[1])}"  # noqa: E501
         )
 
         # # Run the MCMC
-        logger.debug("Running the MCMC")
+        logger.trace("Running the MCMC")
         samples_comp = pw.sparseFullWalkRun(
             A=fr_output.sparse_A,
             b=fr_output.sparse_b,
@@ -90,12 +90,12 @@ class NoSignalingSampler(Sampler):
         )
 
         # Map back to the original space
-        logger.debug("Mapping back to the original space")
+        logger.trace("Mapping back to the original space")
         if fr_output.Q is not None and fr_output.Q.size > 0:
-            logger.debug(f"Mapping back to the original space with Q: {fr_output.Q}")
+            logger.trace(f"Mapping back to the original space with Q: {fr_output.Q}")
             samples_og = (fr_output.Q @ samples_comp.T).T + fr_output.z1.T
         else:
-            logger.debug("Already in the original space, no mapping needed")
+            logger.trace("Already in the original space, no mapping needed")
             samples_og = samples_comp  # Already in original space
         logger.success(f"Samples shape: {samples_og.shape}")
 
@@ -130,7 +130,7 @@ class SamplesAnalyzer:
         """
         Check that the samples are in the no-signaling set.
         """
-        logger.debug("Checking that the points are in the no-signaling set")
+        logger.trace("Checking that the points are in the no-signaling set")
         all_samples_good = True
         all_samples_count = 0
         bad_samples_count = 0

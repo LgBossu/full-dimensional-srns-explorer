@@ -488,7 +488,11 @@ def short_range_index_to_indices(index, delta: int = 2, m: int = 2):
         # Long path
         index -= delta**2 * m**2
         x = index % m
-        beta = tuple(np.base_repr(index // m, delta).rjust(m, "0"))
+        beta = tuple(np.base_repr((index // m) % (delta**m), delta).rjust(m, "0"))
+        # for bases delta >10, the above line will bug out since we pad with "0"
+        # and do not account for bases with multiple arabic digits per  basis digit
+        # TODO : Fix this
+        beta = tuple(int(b) for b in beta)
         a = index // (m * delta**m)
         z = 1
         return a, beta, x, z
@@ -535,96 +539,105 @@ pr_box = RoutedBehavior(
 
 
 if __name__ == "__main__":
-    check: np.ndarray = np.array(
-        [
-            [
-                [
-                    ["p0000S", "p0001S", "p0010S", "p0011S"],
-                    ["p0100S", "p0101S", "p0110S", "p0111S"],
-                ],
-                [
-                    ["p1000S", "p1001S", "p1010S", "p1011S"],
-                    ["p1100S", "p1101S", "p1110S", "p1111S"],
-                ],
-            ],
-            [
-                [
-                    ["p0000L", "p0001L", "p0010L", "p0011L"],
-                    ["p0100L", "p0101L", "p0110L", "p0111L"],
-                ],
-                [
-                    ["p1000L", "p1001L", "p1010L", "p1011L"],
-                    ["p1100L", "p1101L", "p1110L", "p1111L"],
-                ],
-            ],
-        ],
-        dtype=object,
-    )
+    # check: np.ndarray = np.array(
+    #     [
+    #         [
+    #             [
+    #                 ["p0000S", "p0001S", "p0010S", "p0011S"],
+    #                 ["p0100S", "p0101S", "p0110S", "p0111S"],
+    #             ],
+    #             [
+    #                 ["p1000S", "p1001S", "p1010S", "p1011S"],
+    #                 ["p1100S", "p1101S", "p1110S", "p1111S"],
+    #             ],
+    #         ],
+    #         [
+    #             [
+    #                 ["p0000L", "p0001L", "p0010L", "p0011L"],
+    #                 ["p0100L", "p0101L", "p0110L", "p0111L"],
+    #             ],
+    #             [
+    #                 ["p1000L", "p1001L", "p1010L", "p1011L"],
+    #                 ["p1100L", "p1101L", "p1110L", "p1111L"],
+    #             ],
+    #         ],
+    #     ],
+    #     dtype=object,
+    # )
 
-    check = check.reshape(2, 4, 4)
+    # check = check.reshape(2, 4, 4)
 
-    check: RoutedBehavior = RoutedBehavior(
-        delta=2,
-        m=2,
-        vector=check.reshape(
-            32,
-        ),
-    )
-    # print(check)
-    # print(check.get_vector())
-    sum_over_a, sum_over_b = check.no_signaling(_debug=True)
-    print("sum_over_a")
-    print(sum_over_a)
+    # check: RoutedBehavior = RoutedBehavior(
+    #     delta=2,
+    #     m=2,
+    #     vector=check.reshape(
+    #         32,
+    #     ),
+    # )
+    # # print(check)
+    # # print(check.get_vector())
+    # sum_over_a, sum_over_b = check.no_signaling(_debug=True)
+    # print("sum_over_a")
+    # print(sum_over_a)
+    # print()
+    # print("sum_over_b")
+    # print(sum_over_b)
+    # print()
+
+    # print("\n\n------\n\n")
+
+    # check_latent_short: np.ndarray = np.array(
+    #     [
+    #         ["p0000S", "p0001S", "p0010S", "p0011S"],
+    #         ["p0100S", "p0101S", "p0110S", "p0111S"],
+    #         ["p1000S", "p1001S", "p1010S", "p1011S"],
+    #         ["p1100S", "p1101S", "p1110S", "p1111S"],
+    #     ]
+    # )
+    # check_latent_long: np.ndarray = np.array(
+    #     [
+    #         ["p0(00)0L", "p0(00)1L"],
+    #         ["p0(01)0L", "p0(01)1L"],
+    #         ["p0(10)0L", "p0(10)1L"],
+    #         ["p0(11)0L", "p0(11)1L"],
+    #         ["p1(00)0L", "p1(00)1L"],
+    #         ["p1(01)0L", "p1(01)1L"],
+    #         ["p1(10)0L", "p1(10)1L"],
+    #         ["p1(11)0L", "p1(11)1L"],
+    #     ],
+    #     dtype=object,
+    # )
+
+    # check_latent_vect: np.ndarray = np.concatenate(
+    #     (
+    #         check_latent_short.reshape(16),
+    #         check_latent_long.reshape(16),
+    #     ),
+    #     axis=0,
+    # )
+    # check_latent: LatentSRNSBehavior = LatentSRNSBehavior(
+    #     delta=2,
+    #     m=2,
+    #     vector=check_latent_vect,
+    # )
+    # # print(check_latent)
+    # # print(check_latent.get_vector())
+    # # print(check_latent.get_matrix_element((1, 1, (1, 0), 1)))
+    # sum_over_a_short, sum_over_a_long, sum_over_b = check_latent.no_signaling(_debug=True)
+    # print("sum_over_a_short (p(b|yS))")
+    # print(sum_over_a_short)
+    # print()
+    # print("sum_over_a_long (p(beta|L))")
+    # print(sum_over_a_long)
+    # print()
+    # print("sum_over_b (p(a|x))")
+    # print(sum_over_b)
+
+    delta = 2
+    m = 2
+
+    for i in range(LatentSRNSBehavior(delta, m).dim_q):
+        print(
+            f"Index {i} : {short_range_index_to_indices(i, delta, m)} --> {short_range_indices_to_index(short_range_index_to_indices(i, delta, m), delta, m)}"
+        )
     print()
-    print("sum_over_b")
-    print(sum_over_b)
-    print()
-
-    print("\n\n------\n\n")
-
-    check_latent_short: np.ndarray = np.array(
-        [
-            ["p0000S", "p0001S", "p0010S", "p0011S"],
-            ["p0100S", "p0101S", "p0110S", "p0111S"],
-            ["p1000S", "p1001S", "p1010S", "p1011S"],
-            ["p1100S", "p1101S", "p1110S", "p1111S"],
-        ]
-    )
-    check_latent_long: np.ndarray = np.array(
-        [
-            ["p0(00)0L", "p0(00)1L"],
-            ["p0(01)0L", "p0(01)1L"],
-            ["p0(10)0L", "p0(10)1L"],
-            ["p0(11)0L", "p0(11)1L"],
-            ["p1(00)0L", "p1(00)1L"],
-            ["p1(01)0L", "p1(01)1L"],
-            ["p1(10)0L", "p1(10)1L"],
-            ["p1(11)0L", "p1(11)1L"],
-        ],
-        dtype=object,
-    )
-
-    check_latent_vect: np.ndarray = np.concatenate(
-        (
-            check_latent_short.reshape(16),
-            check_latent_long.reshape(16),
-        ),
-        axis=0,
-    )
-    check_latent: LatentSRNSBehavior = LatentSRNSBehavior(
-        delta=2,
-        m=2,
-        vector=check_latent_vect,
-    )
-    # print(check_latent)
-    # print(check_latent.get_vector())
-    # print(check_latent.get_matrix_element((1, 1, (1, 0), 1)))
-    sum_over_a_short, sum_over_a_long, sum_over_b = check_latent.no_signaling(_debug=True)
-    print("sum_over_a_short (p(b|yS))")
-    print(sum_over_a_short)
-    print()
-    print("sum_over_a_long (p(beta|L))")
-    print(sum_over_a_long)
-    print()
-    print("sum_over_b (p(a|x))")
-    print(sum_over_b)
