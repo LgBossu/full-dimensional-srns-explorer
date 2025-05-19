@@ -196,7 +196,6 @@ class ShortRangeNoSignalingSet(BehaviorSet):
             a, b, x, y, _ = behaviors.routed_index_to_indices(line_idx, delta=self.delta, m=self.m)
 
             for beta in [tuple(l_beta[:y] + [b] + l_beta[y:]) for l_beta in lacking_betas]:
-                logger.debug(f"a, beta, x, z = {a, beta, x, 1}")
                 M[
                     line_idx,
                     behaviors.short_range_indices_to_index(
