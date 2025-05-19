@@ -201,7 +201,7 @@ class ShortRangeNoSignalingSet(BehaviorSet):
                 M[
                     line_idx,
                     behaviors.short_range_indices_to_index(
-                        (a, beta, x), delta=self.delta, m=self.m
+                        (a, beta, x, 1), delta=self.delta, m=self.m
                     ),
                 ] = 1
                 # TODO : if needed, there is room for optimization here :
@@ -250,7 +250,7 @@ class ShortRangeNoSignalingSet(BehaviorSet):
                 ] = 1
             for beta in values_of_beta:
                 row_eq[
-                    behaviors.short_range_index_to_indices(
+                    behaviors.short_range_indices_to_index(
                         (a, beta, x, 1), delta=self.delta, m=self.m
                     )
                 ] = -1
