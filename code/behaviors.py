@@ -44,6 +44,18 @@ class Behavior(ABC):
         """
         pass
 
+    def get_vector_element(self, index: int):
+        if self.behavior_vector is None:
+            raise ValueError("Behavior vector is not initialized.")
+        return self.behavior_vector[index]
+
+    @abstractmethod
+    def get_matrix_element(self, indices: tuple):
+        """
+        In the matrix representation, get the element at the given indices.
+        """
+        pass
+
     # GETTERS
     def get_vector(self):
         return self.behavior_vector
@@ -175,6 +187,18 @@ class RoutedBehavior(Behavior):
     def behavior_matrix_to_vector(self, behavior_matrix):
         return np.reshape(behavior_matrix, self.vector_shape)
 
+    def get_matrix_element(self, indices: tuple):
+        """
+        In the matrix representation, get the element at the given indices.
+        For RoutedBehavior, the indices are expected in the form (z, a, b, x, y).
+        """
+        if len(indices) != 5:
+            raise ValueError("Expected 5 indices (z, a, b, x, y).")
+        a, b, x, y, z = indices
+        return self.behavior_vector_to_matrix(self.behavior_vector)[
+            z, self.delta * a + b, self.m * x + y
+        ]
+
     def __str__(self):
         matrix_form = self.behavior_vector_to_matrix(self.behavior_vector)
         res: str = "Behavior:\n"
@@ -283,6 +307,34 @@ class LatentSRNSBehavior(Behavior):
         q_long = np.reshape(q_long, self.dim_q_L)
         return np.concatenate((q_short, q_long), axis=0)
 
+    def get_matrix_element(self, indices: tuple):
+        """
+        In the matrix representation, get the element at the given indices.
+        For LatentSRNSBehavior, the indices are expected in the forms :
+        - (z, a, b, x, y) for the short path
+        - (z, a, beta, x) for the long path, with beta a tuple-like object
+                          with m elements, each in [0, delta-1]
+        """
+        z = indices[0]
+        loc_tuple = indices[1:]
+        mat_form = self.behavior_vector_to_matrix(self.behavior_vector)
+        if z == 0:
+            if len(loc_tuple) != 4:
+                raise ValueError("Expected 4 indices (a, b, x, y) to locate on short path.")
+            a, b, x, y = loc_tuple
+            return mat_form[0][self.delta * a + b, self.m * x + y]
+        elif z == 1:
+            if len(loc_tuple) != 3:
+                raise ValueError("Expected 3 indices (a, beta, x) to locate on long path.")
+            a, beta, x = loc_tuple
+            if len(beta) != self.m:
+                raise ValueError(f"Expected {self.m} indices in beta.")
+            id_beta = "".join([str(b) for b in beta])
+            id_beta = int(id_beta, self.delta)
+            if id_beta >= self.delta**self.m:
+                raise ValueError(f"Invalid beta index {id_beta} for delta={self.delta}.")
+            return mat_form[1][id_beta + (self.delta**self.m * a), x]
+
     def __str__(self):
         q_short, q_long = self.get_matrix()
         res: str = "Behavior:\n"
@@ -365,6 +417,21 @@ def routed_indices_to_index(a, b, x, y, z, delta: int = 2, m: int = 2):
     In the routed setting, convert a set of indices to the corresponding 1-D index
     """
     return (z * (delta**2 * m**2)) + (a * (delta * m**2)) + (b * (m**2)) + (x * m) + y
+
+
+class _BehaviorCoordsConverter:
+    """
+    A class to facilitate the conversion of a behavior's coordinates
+    between vector and matrix representation.
+    """
+
+    # def __init__(self, delta: int, m: int, indexed_vect: np.ndarray, indexed_mat: np.ndarray):
+    #     super().__init__(delta, m, indexed_vect)
+    #     # self.indexed_mat = super()
+
+    # def get_corresponding_index(self, indices: tuple):
+
+    # TODO
 
 
 # Certain typical behaviors
@@ -478,3 +545,42 @@ if __name__ == "__main__":
     )
     print(check)
     print(check.get_vector())
+
+    print("\n\n------\n\n")
+
+    check_latent_short: np.ndarray = np.array(
+        [
+            ["p0000S", "p0001S", "p0010S", "p0011S"],
+            ["p0100S", "p0101S", "p0110S", "p0111S"],
+            ["p1000S", "p1001S", "p1010S", "p1011S"],
+            ["p1100S", "p1101S", "p1110S", "p1111S"],
+        ]
+    )
+    check_latent_long: np.ndarray = np.array(
+        [
+            ["p0(00)0L", "p0(00)1L"],
+            ["p0(01)0L", "p0(01)1L"],
+            ["p0(10)0L", "p0(10)1L"],
+            ["p0(11)0L", "p0(11)1L"],
+            ["p1(00)0L", "p1(00)1L"],
+            ["p1(01)0L", "p1(01)1L"],
+            ["p1(10)0L", "p1(10)1L"],
+            ["p1(11)0L", "p1(11)1L"],
+        ]
+    )
+
+    check_latent_vect: np.ndarray = np.concatenate(
+        (
+            check_latent_short.reshape(16),
+            check_latent_long.reshape(16),
+        ),
+        axis=0,
+    )
+    check_latent: LatentSRNSBehavior = LatentSRNSBehavior(
+        delta=2,
+        m=2,
+        vector=check_latent_vect,
+    )
+    print(check_latent)
+    print(check_latent.get_vector())
+    print(check_latent.get_matrix_element((1, 1, (1, 0), 1)))
