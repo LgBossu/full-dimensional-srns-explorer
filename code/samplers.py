@@ -125,6 +125,7 @@ class SamplesAnalyzer:
 
     def check_samples_are_no_signaling(
         self,
+        save_path: str = None,
     ) -> bool:
         """
         Check that the samples are in the no-signaling set.
@@ -147,9 +148,14 @@ class SamplesAnalyzer:
             logger.error(
                 f"Some points are not in the no-signaling set ({bad_samples_count}/{all_samples_count})"  # noqa: E501
             )
+        if save_path is not None:
+            with open(save_path, "a") as f:
+                f.write(f"Sampler: {self.sampler_name}\n")
+                f.write(f"All samples are no-signaling: {all_samples_good}\n")
+                f.write(f"Number of bad samples: {bad_samples_count}/{all_samples_count}\n")
         return all_samples_good
 
-    def plot_projection(self, rng_seed: int = None):
+    def plot_projection(self, rng_seed: int = None, save_path: str = None, plot: bool = True):
         # Get the dimension of the samples
         d = self.samples.shape[1]
 
@@ -198,7 +204,12 @@ class SamplesAnalyzer:
         axs[1].set_title("Sampling density heatmap on projected plane")
 
         plt.tight_layout()
-        plt.show()
+        if save_path is not None:
+            plt.savefig(save_path)
+            logger.success(f"Saved plot to {save_path}")
+        if plot:
+            plt.show()
+        return None
 
     def global_analyze_sampling(self, plot=False, log=True):
         """
@@ -249,7 +260,7 @@ class SamplesAnalyzer:
         return stats
 
     # Check the uniformity of the samples
-    def analyze_local_uniformity(self, k=None, plot=False, log=True):
+    def analyze_local_uniformity(self, k=None, plot=False, log=True, save_text=None, save_fig=None):
         """
         Check the local uniformity of a point cloud using k-nearest neighbor distances.
 
@@ -288,6 +299,17 @@ class SamplesAnalyzer:
             "per_point_std_mean": np.mean(np.std(knn_distances, axis=1)),
         }
 
+        if save_text is not None:
+            with open(save_text, "a") as f:
+                f.write(f"Sampler: {self.sampler_name}\n")
+                f.write(f"Local uniformity stats (k={k}): {stats}\n")
+                f.write(f"Mean k-NN distance: {stats['mean']:.7f}\n")
+                f.write(f"Std k-NN distance: {stats['std']:.7f}\n")
+                f.write(f"Min k-NN distance: {stats['min']:.7f}\n")
+                f.write(f"Max k-NN distance: {stats['max']:.7f}\n")
+                f.write(f"Mean per-point std: {stats['per_point_std_mean']:.7f}\n")
+                f.write("\n")
+
         # Print stats
         if log:
             logger.info(f"Local uniformity stats (k={k}): {stats}")
@@ -303,6 +325,10 @@ class SamplesAnalyzer:
             plt.xlabel("Distance")
             plt.ylabel("Frequency")
             plt.grid(True)
+        if save_fig is not None:
+            plt.savefig(save_fig)
+            logger.success(f"Saved plot to {save_fig}")
+        if plot:
             plt.show()
 
         return stats
@@ -319,9 +345,14 @@ if __name__ == "__main__":
         level="INFO",
         colorize=True,
     )
+    save_projections = "projection.png"
+    save_uniform_histogram = "uniformity_histogram.png"
+    save_uniform_text = "stats_exp.txt"
     sampler = NoSignalingSampler(delta, m)
-    samples = sampler.sample_multiple(number_of_samples=10000, number_to_burn=1000)
+    samples = sampler.sample_multiple(number_of_samples=int(3e7), number_to_burn=1000)
     analyzer = SamplesAnalyzer(delta, m, samples)
-    analyzer.check_samples_are_no_signaling()
-    analyzer.plot_projection()
-    analyzer.analyze_local_uniformity()
+    # analyzer.check_samples_are_no_signaling(save_path=save_uniform_text)
+    analyzer.plot_projection(save_path=save_projections, plot=False)
+    analyzer.analyze_local_uniformity(
+        save_fig=save_uniform_histogram, save_text=save_uniform_text, plot=False
+    )  # Crashes, likely memory overload
