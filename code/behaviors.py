@@ -404,7 +404,6 @@ class LatentSRNSBehavior(Behavior):
         )
 
     def no_signaling(self, atol=1e-10, _debug: bool = False):
-        # TODO: Implement the no-signaling condition for the latent behavior
         q_short, q_long = self.behavior_vector_to_matrix(self.behavior_vector)
 
         # No-signaling condition on Alice's side

@@ -228,31 +228,50 @@ class ShortRangeNoSignalingSet(BehaviorSet):
 
         # Dimension of q
         dim_q = (self.delta**2 * self.m**2) + (self.m * self.delta ** (self.m + 1))
-        NS_enforcer = np.zeros((self.delta * self.m, dim_q))
+        equations = []
+        # We sum over a, NOT beta
         values_of_beta = [
             tuple(np.base_repr(i, self.delta).rjust(self.m, "0")) for i in range(self.delta**self.m)
         ]
-        # There are exactly delta*m equations to enforce in the above form
-        for line_idx, (a, x) in enumerate(
-            [(i, j) for i in range(self.delta) for j in range(self.m)]
-        ):
-            # TODO : may add tqdm in such places to check progress in real time for greater dims
-            row_eq = np.zeros(dim_q)
-            for b, y in [(i, j) for i in range(self.delta) for j in range(self.m)]:
-                # Given a,x,z=S, we loop over all b,y coordinates
-                # to compute the reference q(a|x)
-                row_eq[
-                    behaviors.short_range_indices_to_index(
-                        (a, b, x, y, 0), delta=self.delta, m=self.m
-                    )
-                ] = 1
-            for beta in values_of_beta:
-                row_eq[
-                    behaviors.short_range_indices_to_index(
-                        (a, beta, x, 1), delta=self.delta, m=self.m
-                    )
-                ] = -1
-            NS_enforcer[line_idx] = row_eq
+        for beta in values_of_beta:
+            for x in range(1, self.m):
+                row_eq = np.zeros(dim_q)
+                for a in range(self.delta):
+                    row_eq[
+                        behaviors.short_range_indices_to_index(
+                            (a, beta, 0, 1), delta=self.delta, m=self.m
+                        )
+                    ] = 1
+                    row_eq[
+                        behaviors.short_range_indices_to_index(
+                            (a, beta, x, 1), delta=self.delta, m=self.m
+                        )
+                    ] = -1
+                equations.append(row_eq)
+
+        # # There are exactly delta*m equations to enforce in the above form
+        # for line_idx, (a, x) in enumerate(
+        #     [(i, j) for i in range(self.delta) for j in range(self.m)]
+        # ):
+        #     # TODO : may add tqdm in such places to check progress in real time for greater dims
+        #     row_eq = np.zeros(dim_q)
+        #     for b in range(self.delta):
+        #         # Given a,x,z=S, we loop over all b,y coordinates
+        #         # to compute the reference q(a|x)
+        #         row_eq[
+        #             behaviors.short_range_indices_to_index(
+        #                 (a, b, x, 0, 0), delta=self.delta, m=self.m
+        #             )
+        #         ] = 1
+        #     for beta in values_of_beta:
+        #         row_eq[
+        #             behaviors.short_range_indices_to_index(
+        #                 (a, beta, x, 1), delta=self.delta, m=self.m
+        #             )
+        #         ] = -1
+        #     NS_enforcer[line_idx] = row_eq
+
+        NS_enforcer = np.array(equations)
 
         return np.vstack((M, NS_enforcer))
 
