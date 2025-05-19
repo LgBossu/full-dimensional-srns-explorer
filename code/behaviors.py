@@ -468,6 +468,45 @@ def routed_indices_to_index(a, b, x, y, z, delta: int = 2, m: int = 2):
     return (z * (delta**2 * m**2)) + (a * (delta * m**2)) + (b * (m**2)) + (x * m) + y
 
 
+def short_range_index_to_indices(index, delta: int = 2, m: int = 2):
+    """
+    In the short-range setting, convert a 1-D index to the corresponding a,b,x,y,z indices
+    """
+    if index < delta**2 * m**2:
+        # Short path
+        a = (index // (delta * m**2)) % delta
+        b = (index // (m**2)) % delta
+        x = (index // m) % m
+        y = index % m
+        z = 0
+        return a, b, x, y, z
+    else:
+        # Long path
+        index -= delta**2 * m**2
+        x = index % m
+        beta = tuple(np.base_repr(index // m, delta).rjust(m, "0"))
+        a = index // (m * delta**m)
+        z = 1
+        return a, beta, x, z
+
+
+def short_range_indices_to_index(indices: tuple, delta: int = 2, m: int = 2) -> int:
+    """
+    In the short-range setting, convert a set of indices to the corresponding 1-D index
+    Assumes form (a, b, x, y, z) for short path,
+    and (a, beta, x, z) for long path.
+    """
+    if len(indices) == 5:
+        # Short path
+        a, b, x, y, z = indices
+        return (z * (delta**2 * m**2)) + (a * (delta * m**2)) + (b * (m**2)) + (x * m) + y
+    else:
+        # Long path
+        a, beta, x, z = indices
+        beta = int("".join([str(b) for b in beta]), delta)
+        return (z * (delta**2 * m**2)) + (a * (delta * m**2)) + (beta * m) + x
+
+
 # Certain typical behaviors
 
 # The maximally mixed state over the experiment space
