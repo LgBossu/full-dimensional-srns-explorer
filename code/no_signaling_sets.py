@@ -8,6 +8,7 @@ import behaviors
 import numpy as np
 from loguru import logger
 from scipy.linalg import svd
+from scipy.optimize import OptimizeResult, linprog
 
 
 class BehaviorSet(ABC):
@@ -150,13 +151,17 @@ class NoSignalingSet(BehaviorSet):
 
 
 class ShortRangeNoSignalingSet(BehaviorSet):
-    def __init__(self, delta: int, m: int, measured_behavior: behaviors.RoutedBehavior):
+    def __init__(
+        self,
+        delta: int,
+        m: int,
+    ):
         super().__init__(delta, m)
 
-        assert (
-            self.delta == measured_behavior.delta
-        ), "Declared delta does not match measured behavior delta"
-        assert self.m == measured_behavior.m, "Declared m does not match measured behavior m"
+        self.routed_dim = behaviors.RoutedBehavior(delta=self.delta, m=self.m).get_vector_shape()[0]
+        self.latent_dim = behaviors.LatentSRNSBehavior(
+            delta=self.delta, m=self.m
+        ).get_vector_shape()[0]
 
     def express_as_function_of_q(self) -> np.ndarray:
         """
@@ -227,7 +232,7 @@ class ShortRangeNoSignalingSet(BehaviorSet):
         M = self.express_as_function_of_q()
 
         # Dimension of q
-        dim_q = (self.delta**2 * self.m**2) + (self.m * self.delta ** (self.m + 1))
+        dim_q = self.latent_dim
         equations = []
         # We sum over a, NOT beta
         values_of_beta = [
@@ -290,6 +295,60 @@ class ShortRangeNoSignalingSet(BehaviorSet):
         b = np.concatenate((maximally_mixed_state, filler_vector))
 
         return A, b
+
+    def lp_test(
+        self,
+        sample: behaviors.RoutedBehavior,
+    ) -> OptimizeResult:
+        """
+        Test if the measured behavior is in the short-range no-signaling set.
+        :param measured_behavior: The measured behavior to test.
+        :return: The result of the optimization.
+        """
+        if not sample.is_no_signaling():
+            logger.warning("The measured behavior is not no-signaling.")
+            raise ValueError("The tested behavior is not no-signaling.")
+
+        A_eq, b_eq = self.get_equations(sample)
+
+        lb = np.zeros(self.latent_dim + 1)
+        rb = np.ones(self.latent_dim + 1)
+        rb[0] = 2
+
+        bounds = list(zip(lb, rb))
+
+        c = np.zeros(self.latent_dim + 1)
+        c[0] = -1
+
+        # Solve the linear programming problem
+        result: OptimizeResult = linprog(
+            c,
+            A_eq=A_eq,
+            b_eq=b_eq,
+            bounds=bounds,
+        )
+
+        # Check if the optimization was successful
+        if result.success:
+            return result
+        else:
+            raise ValueError(f"Optimization failed: {result.message}. Status code: {result.status}")
+
+    def is_in_set(
+        self,
+        sample: behaviors.RoutedBehavior,
+    ) -> bool | None:
+        """
+        Test if the measured behavior is in the short-range no-signaling set.
+        :param sample: The measured behavior to test.
+        :return: True if the behavior is in the set, False if not, None if can't tell.
+        """
+        try:
+            result = self.lp_test(sample)
+            return (-result.fun) >= 1
+        except ValueError as e:
+            logger.error(f"Error during LP test: {e}")
+            return None
 
 
 def routed_no_signaling_equations(delta: int, m: int) -> tuple[np.ndarray, np.ndarray]:
