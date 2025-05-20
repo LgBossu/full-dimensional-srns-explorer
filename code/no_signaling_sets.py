@@ -249,30 +249,6 @@ class ShortRangeNoSignalingSet(BehaviorSet):
                     ] = -1
                 equations.append(row_eq)
 
-        # # There are exactly delta*m equations to enforce in the above form
-        # for line_idx, (a, x) in enumerate(
-        #     [(i, j) for i in range(self.delta) for j in range(self.m)]
-        # ):
-        #     # TODO : may add tqdm in such places to check progress in real time for greater dims
-        #     row_eq = np.zeros(dim_q)
-        #     for b in range(self.delta):
-        #         # Given a,x,z=S, we loop over all b,y coordinates
-        #         # to compute the reference q(a|x)
-        #         row_eq[
-        #             behaviors.short_range_indices_to_index(
-        #                 (a, b, x, 0, 0), delta=self.delta, m=self.m
-        #             )
-        #         ] = 1
-        #     for beta in values_of_beta:
-        #         row_eq[
-        #             behaviors.short_range_indices_to_index(
-        #                 (a, beta, x, 1), delta=self.delta, m=self.m
-        #             )
-        #         ] = -1
-        #     NS_enforcer[line_idx] = row_eq
-
-        NS_enforcer = np.array(equations)
-
         return np.vstack((M, NS_enforcer))
 
     def get_equations(
