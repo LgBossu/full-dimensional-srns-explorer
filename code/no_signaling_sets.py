@@ -191,7 +191,7 @@ class ShortRangeNoSignalingSet(BehaviorSet):
             for i in range(self.delta ** (self.m - 1))
         ]  # Lacking betas holds the list of all beta tuples, with one missing coordinate
         # The missing coordinate is the one to be inserted with 'beta_y=b'
-        logger.debug(
+        logger.trace(
             f"Estimated memory complexity of lacking_betas: {len(lacking_betas) * 28} bytes"
         )
 
