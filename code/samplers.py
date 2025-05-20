@@ -42,42 +42,42 @@ class NoSignalingSampler(Sampler):
         number_to_burn: int = int(1e3),
     ) -> np.ndarray:
         # Get the equations of the no-signaling set
-        logger.debug("Getting the equations of the no-signaling set")
+        logger.trace("Getting the equations of the no-signaling set")
         ns_set = NoSignalingSet(delta=self.delta, m=self.m)
         A, b = ns_set.get_equations()
 
-        logger.debug(f"Equations shape: {A.shape}")
+        logger.trace(f"Equations shape: {A.shape}")
 
         # Rank reduce the matrix
-        logger.debug("Rank reducing the matrix")
+        logger.trace("Rank reducing the matrix")
         U, s, _ = sp.linalg.svd(A)
         rank = np.sum(s > 1e-10)
         A_reduced = U[:, :rank].T @ A
         b_reduced = U[:, :rank].T @ b
 
         # Change to sparse representation
-        logger.debug("Changing to sparse representation")
+        logger.trace("Changing to sparse representation")
         A_comp = sp.sparse.csc_matrix(A_reduced, dtype=np.float64)
         b_comp = b_reduced.astype(np.float64)
 
         # Get the polytopewalk objects
-        logger.debug("Getting the polytopewalk objects")
+        logger.trace("Getting the polytopewalk objects")
         # Walk
-        logger.debug("Getting the walk object")
+        logger.trace("Getting the walk object")
         walk = pw.sparse.SparseHitAndRun()
         # Facial reduction
-        logger.debug("Getting the facial reduction object")
+        logger.trace("Getting the facial reduction object")
         fr = pw.FacialReduction()
         fr_output = fr.reduce(A_comp, b_comp, k=A_comp.shape[1], sparse=True)
         # Center
-        logger.debug("Getting the center object")
+        logger.trace("Getting the center object")
         sc = pw.sparse.SparseCenter()
-        logger.debug(
+        logger.trace(
             f"Test center point: {sc.getInitialPoint(fr_output.sparse_A, fr_output.sparse_b, A_comp.shape[1])}"  # noqa: E501
         )
 
         # # Run the MCMC
-        logger.debug("Running the MCMC")
+        logger.trace("Running the MCMC")
         samples_comp = pw.sparseFullWalkRun(
             A=fr_output.sparse_A,
             b=fr_output.sparse_b,
@@ -90,12 +90,12 @@ class NoSignalingSampler(Sampler):
         )
 
         # Map back to the original space
-        logger.debug("Mapping back to the original space")
+        logger.trace("Mapping back to the original space")
         if fr_output.Q is not None and fr_output.Q.size > 0:
-            logger.debug(f"Mapping back to the original space with Q: {fr_output.Q}")
+            logger.trace(f"Mapping back to the original space with Q: {fr_output.Q}")
             samples_og = (fr_output.Q @ samples_comp.T).T + fr_output.z1.T
         else:
-            logger.debug("Already in the original space, no mapping needed")
+            logger.trace("Already in the original space, no mapping needed")
             samples_og = samples_comp  # Already in original space
         logger.success(f"Samples shape: {samples_og.shape}")
 
@@ -125,11 +125,12 @@ class SamplesAnalyzer:
 
     def check_samples_are_no_signaling(
         self,
+        save_path: str = None,
     ) -> bool:
         """
         Check that the samples are in the no-signaling set.
         """
-        logger.debug("Checking that the points are in the no-signaling set")
+        logger.trace("Checking that the points are in the no-signaling set")
         all_samples_good = True
         all_samples_count = 0
         bad_samples_count = 0
@@ -147,9 +148,14 @@ class SamplesAnalyzer:
             logger.error(
                 f"Some points are not in the no-signaling set ({bad_samples_count}/{all_samples_count})"  # noqa: E501
             )
+        if save_path is not None:
+            with open(save_path, "a") as f:
+                f.write(f"Sampler: {self.sampler_name}\n")
+                f.write(f"All samples are no-signaling: {all_samples_good}\n")
+                f.write(f"Number of bad samples: {bad_samples_count}/{all_samples_count}\n")
         return all_samples_good
 
-    def plot_projection(self, rng_seed: int = None):
+    def plot_projection(self, rng_seed: int = None, save_path: str = None, plot: bool = True):
         # Get the dimension of the samples
         d = self.samples.shape[1]
 
@@ -198,7 +204,12 @@ class SamplesAnalyzer:
         axs[1].set_title("Sampling density heatmap on projected plane")
 
         plt.tight_layout()
-        plt.show()
+        if save_path is not None:
+            plt.savefig(save_path)
+            logger.success(f"Saved plot to {save_path}")
+        if plot:
+            plt.show()
+        return None
 
     def global_analyze_sampling(self, plot=False, log=True):
         """
@@ -249,7 +260,7 @@ class SamplesAnalyzer:
         return stats
 
     # Check the uniformity of the samples
-    def analyze_local_uniformity(self, k=None, plot=False, log=True):
+    def analyze_local_uniformity(self, k=None, plot=False, log=True, save_text=None, save_fig=None):
         """
         Check the local uniformity of a point cloud using k-nearest neighbor distances.
 
@@ -288,6 +299,17 @@ class SamplesAnalyzer:
             "per_point_std_mean": np.mean(np.std(knn_distances, axis=1)),
         }
 
+        if save_text is not None:
+            with open(save_text, "a") as f:
+                f.write(f"Sampler: {self.sampler_name}\n")
+                f.write(f"Local uniformity stats (k={k}): {stats}\n")
+                f.write(f"Mean k-NN distance: {stats['mean']:.7f}\n")
+                f.write(f"Std k-NN distance: {stats['std']:.7f}\n")
+                f.write(f"Min k-NN distance: {stats['min']:.7f}\n")
+                f.write(f"Max k-NN distance: {stats['max']:.7f}\n")
+                f.write(f"Mean per-point std: {stats['per_point_std_mean']:.7f}\n")
+                f.write("\n")
+
         # Print stats
         if log:
             logger.info(f"Local uniformity stats (k={k}): {stats}")
@@ -303,6 +325,10 @@ class SamplesAnalyzer:
             plt.xlabel("Distance")
             plt.ylabel("Frequency")
             plt.grid(True)
+        if save_fig is not None:
+            plt.savefig(save_fig)
+            logger.success(f"Saved plot to {save_fig}")
+        if plot:
             plt.show()
 
         return stats
@@ -319,9 +345,14 @@ if __name__ == "__main__":
         level="INFO",
         colorize=True,
     )
+    save_projections = "projection.png"
+    save_uniform_histogram = "uniformity_histogram.png"
+    save_uniform_text = "stats_exp.txt"
     sampler = NoSignalingSampler(delta, m)
-    samples = sampler.sample_multiple(number_of_samples=10000, number_to_burn=1000)
+    samples = sampler.sample_multiple(number_of_samples=int(3e7), number_to_burn=1000)
     analyzer = SamplesAnalyzer(delta, m, samples)
-    analyzer.check_samples_are_no_signaling()
-    analyzer.plot_projection()
-    analyzer.analyze_local_uniformity()
+    # analyzer.check_samples_are_no_signaling(save_path=save_uniform_text)
+    analyzer.plot_projection(save_path=save_projections, plot=False)
+    analyzer.analyze_local_uniformity(
+        save_fig=save_uniform_histogram, save_text=save_uniform_text, plot=False
+    )  # Crashes, likely memory overload
