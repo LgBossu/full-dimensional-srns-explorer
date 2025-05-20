@@ -199,13 +199,13 @@ class SamplesAnalyzer:
         if colors is None:
             colors = ["blue"] * len(self.samples)
         else:
-            colors = ["orange" if c else "blue" for c in colors]
+            colors = ["yellow" if c else "blue" for c in colors]
         axs[0].scatter(
             projected_samples[:, 0],
             projected_samples[:, 1],
             c=colors,
+            marker="+",
             alpha=alpha,
-            edgecolor="k",
         )
         axs[0].scatter(
             projected_samples[ref_vector_idx, 0],
