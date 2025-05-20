@@ -249,6 +249,7 @@ class ShortRangeNoSignalingSet(BehaviorSet):
                     ] = -1
                 equations.append(row_eq)
 
+        NS_enforcer = np.array(equations)
         return np.vstack((M, NS_enforcer))
 
     def get_equations(
