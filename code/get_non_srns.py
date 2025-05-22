@@ -48,7 +48,7 @@ def extract_non_srns(points_file: Path, belonging_list_file: Path) -> list[np.nd
 
     logger.debug(f"Points file content looks like: {points.shape}")
 
-    # Order is preserved so the first coordinate of the belonging list (point rank) is actually useless
+    # Order is preserved so the first coordinate of the belonging list (point rank) is useless
     belonging_list = [bool(x[1]) for x in belonging_list]
 
     # Get the non-srns points
