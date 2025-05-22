@@ -334,19 +334,53 @@ class ShortRangeNoSignalingSet(BehaviorSet):
         else:
             raise ValueError(f"Optimization failed: {result.message}. Status code: {result.status}")
 
-    def get_hyperplane(
+    def is_facet_hyperplane(
         self,
         sample: behaviors.RoutedBehavior,
-    ) -> np.ndarray:
+        tolerance: float = 1e-10,
+    ) -> tuple[bool, int, np.ndarray]:
         try:
             res = self.lp_test(sample)
         except ValueError as e:
             logger.error(f"Error during LP test: {e}")
             return None
 
-        vec_lambda = -res.eqlin.marginals[: self.routed_dim]
+        vec_lambda = -res.eqlin.marginals
+        vec_mu = res.lower.marginals
 
-        # TODO
+        A_eq, _ = self.get_equations(sample)
+
+        lines_eq = A_eq[np.abs(vec_lambda) > tolerance]
+        lines_ineq = []
+        for i, val in enumerate(vec_mu):
+            if val > tolerance:
+                e = np.zeros(self.latent_dim + 1)
+                e[i] = 1  # Check if the coefficient is positive or negative
+                lines_ineq.append(e)
+
+        tot_constraints = np.vstack([lines_eq] + lines_ineq)
+
+        rank = np.linalg.matrix_rank(tot_constraints)
+
+        logger.trace(f"Vector lambda: {vec_lambda}")
+        logger.trace(f"Vector mu: {vec_mu}")
+        logger.trace(f"Rank of the constraints: {rank}")
+        logger.trace(f"Matrix of constraints: {tot_constraints}")
+
+        return (rank == self.routed_dim), rank, vec_lambda
+
+    def get_facet_hyperplane(
+        self,
+        sample: behaviors.RoutedBehavior,
+    ) -> np.ndarray:
+        is_facet, rank, vec_lambda = self.is_facet_hyperplane(sample)
+
+        if is_facet:
+            return vec_lambda[: self.routed_dim]
+        else:
+            raise ValueError(
+                f"The behavior does not determine a facet hyperplane (found rank {rank})."
+            )
 
     def is_in_set(
         self,
