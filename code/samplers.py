@@ -155,7 +155,14 @@ class SamplesAnalyzer:
                 f.write(f"Number of bad samples: {bad_samples_count}/{all_samples_count}\n")
         return all_samples_good
 
-    def plot_projection(self, rng_seed: int = None, save_path: str = None, plot: bool = True):
+    def plot_projection(
+        self,
+        rng_seed: int = None,
+        save_path: str = None,
+        plot: bool = True,
+        colors: list[bool] = None,
+        alpha: float = 0.5,
+    ):
         # Get the dimension of the samples
         d = self.samples.shape[1]
 
@@ -189,7 +196,26 @@ class SamplesAnalyzer:
         fig, axs = plt.subplots(1, 2, figsize=(14, 6))
 
         # Scatter plot
-        axs[0].plot(projected_samples[:, 0], projected_samples[:, 1], "+")
+        if colors is None:
+            colors = ["blue"] * len(self.samples)
+        else:
+            colors = ["yellow" if c else "blue" for c in colors]
+        axs[0].scatter(
+            projected_samples[:, 0],
+            projected_samples[:, 1],
+            c=colors,
+            marker="+",
+            alpha=alpha,
+        )
+        axs[0].scatter(
+            projected_samples[ref_vector_idx, 0],
+            projected_samples[ref_vector_idx, 1],
+            c="red",
+            marker="x",
+            s=100,
+            label="Reference vector",
+        )
+
         axs[0].set_title(f"Samples projected onto a plane orthogonal to {ref_vector_idx}-th vector")
         axs[0].set_xlabel("Projected dimension 1")
         axs[0].set_ylabel("Projected dimension 2")
