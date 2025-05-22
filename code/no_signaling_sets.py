@@ -334,6 +334,20 @@ class ShortRangeNoSignalingSet(BehaviorSet):
         else:
             raise ValueError(f"Optimization failed: {result.message}. Status code: {result.status}")
 
+    def get_hyperplane(
+        self,
+        sample: behaviors.RoutedBehavior,
+    ) -> np.ndarray:
+        try:
+            res = self.lp_test(sample)
+        except ValueError as e:
+            logger.error(f"Error during LP test: {e}")
+            return None
+
+        vec_lambda = -res.eqlin.marginals[: self.routed_dim]
+
+        # TODO
+
     def is_in_set(
         self,
         sample: behaviors.RoutedBehavior,
