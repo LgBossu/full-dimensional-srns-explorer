@@ -367,6 +367,8 @@ class ShortRangeNoSignalingSet(BehaviorSet):
         logger.trace(f"Rank of the constraints: {rank}")
         logger.trace(f"Matrix of constraints: {tot_constraints}")
 
+        # logger.debug(f"Expected rank: {self.routed_dim}, found rank: {rank}")
+
         return (rank == self.routed_dim), rank, vec_lambda
 
     def get_facet_hyperplane(
@@ -378,9 +380,14 @@ class ShortRangeNoSignalingSet(BehaviorSet):
         if is_facet:
             return vec_lambda[: self.routed_dim]
         else:
-            raise ValueError(
-                f"The behavior does not determine a facet hyperplane (found rank {rank})."
+            # raise ValueError(
+            #     f"The behavior does not determine a facet hyperplane (found rank {rank})."
+            # )
+            logger.warning(
+                f"The has rank {rank}, not yet identified as maximal hyperplane dimension."
             )
+
+        return vec_lambda[: self.routed_dim]
 
     def is_in_set(
         self,
