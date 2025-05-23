@@ -2,9 +2,12 @@ import os
 from pathlib import Path
 
 import numpy as np
+import plotly.express as px
 import plotly.graph_objects as go
 from dash import Dash, Input, Output, callback, dcc, html
 from loguru import logger
+from tqdm import tqdm
+# from math import log
 
 
 class DataLoader:
@@ -82,7 +85,10 @@ class DataLoader:
             # require_tagged : i.e, we want datasets with a matching belongings list
             counts = self.count_matching_files(all_files)
             tagged_files = [
-                filename for filename in all_files if counts[self.parse_file_id(filename)[3]] > 1
+                filename
+                for filename in all_files
+                if counts[self.parse_file_id(filename)[3]] > 1
+                and filename.startswith("sampled_behaviors")
             ]
 
         # Filter files based on size limit
@@ -104,11 +110,12 @@ class DataLoader:
             else:
                 break
 
-        # If all files are beyond the limit, raise an error
+        # If all files are beyond the limit, load the smallest one
+        # and slice the data to fit the limit
+        is_beyond_limit = False
         if beyond_limit == len(sizes):
-            raise ValueError(
-                f"All files are beyond the size limit of {self.size_limit} bytes. Please increase the size limit or sample smaller files."  # noqa: E501
-            )
+            is_beyond_limit = True
+            beyond_limit = len(sizes) - 1
 
         # Keep only files within the size limit
         tagged_files = tagged_files[beyond_limit:]
@@ -126,12 +133,13 @@ class DataLoader:
 
         files_to_use = [tagged_files[i] for i in files_to_use]
 
-        return files_to_use
+        return files_to_use, is_beyond_limit
 
     def load_data(
         self,
         filenames: list[str],
         tagged: bool = True,
+        slice_to_limit: bool = False,
     ) -> list[np.ndarray]:
         loaded_arrays = []
         if tagged:
@@ -145,7 +153,7 @@ class DataLoader:
                 tag_array_name = filename.split("/")[-1]
                 tag_array_name = tag_array_name.replace("sampled_behaviors", "belonging_list")
                 tag_array = np.load(self.data_dir / tag_array_name)
-                tags_list.append([bool(x[1]) for x in tag_array])
+                tags_list += [bool(x[1]) for x in tag_array]
 
         # Concatenate all loaded arrays along the first axis
         data = np.vstack(loaded_arrays)
@@ -154,6 +162,10 @@ class DataLoader:
         if tagged:
             tags = np.array(tags_list)
             dataset = [data[tags], data[~tags]]
+
+        if slice_to_limit:
+            for i in range(len(dataset)):
+                dataset[i] = dataset[i][: self.size_limit]
 
         return dataset
 
@@ -164,10 +176,10 @@ class DataLoader:
         """
         Automatically load the data based on the delta and m values.
         """
-        filenames = self.determine_best_files(
+        filenames, is_beyond_limit = self.determine_best_files(
             require_tagged=require_tagged,
         )
-        return self.load_data(filenames, tagged=require_tagged)
+        return self.load_data(filenames, tagged=require_tagged, slice_to_limit=is_beyond_limit)
 
 
 class DataSlicer:
@@ -177,12 +189,16 @@ class DataSlicer:
         m: int,
         data: list[np.ndarray],
         slice_relative_thickness: float = 0.01,
-        axes: tuple[int, int] | None = None,
+        axes: tuple[int, int, int] | None = None,
     ):
         # Primitive arguments
         self.data = data
         self.delta = delta
         self.m = m
+
+        self.total_data_points = 0
+        for data_array in data:
+            self.total_data_points += len(data_array)
 
         # Estimate typical size of the data
         minimum = np.inf
@@ -199,7 +215,10 @@ class DataSlicer:
 
         # Slicing parameters
         self.epsilon: float = slice_relative_thickness * (self.max - self.min)
-        self.n_slices: int = ((self.max) - (self.min) // self.epsilon) + 1
+        self.n_slices: int = int(((self.max) - (self.min)) // self.epsilon) + 1
+
+        logger.trace(f"Computed epsilon: {self.epsilon}")
+        logger.trace(f"Computed slices: {self.n_slices}")
 
         self.slice_values = np.linspace(
             self.min,
@@ -207,25 +226,28 @@ class DataSlicer:
             num=self.n_slices,
             endpoint=True,
         )
-        logger.debug(f"Computed slice values: {self.slice_values}")
-        logger.debug(f"Computed epsilon: {self.epsilon}")
-        logger.debug(f"Computed of slices: {self.n_slices}")
+
+        # logger.debug(f"Computed slice values: {self.slice_values}")
 
         # Slicing projection and direction
         if axes is None:
-            axes = (0, self.delta**2 + self.m**2)
+            axes = (0, self.delta**2 + self.m**2, 1)
         self.x_axis = axes[0]
         self.y_axis = axes[1]
-        self.slice_direction = np.ones(2 * self.delta**2 + 2 * self.m**2)
-        self.slice_direction[self.x_axis] = 0
-        self.slice_direction[self.y_axis] = 0
+        self.z_axis = axes[2]
+        self.slice_direction = np.zeros(2 * self.delta**2 * self.m**2)
+        self.slice_direction[self.z_axis] = 1
 
         # Slicing knife
-        self.slice_distance = self.slice_direction * self.epsilon
-        self.slice_distance[self.x_axis] = np.inf
-        self.slice_distance[self.y_axis] = np.inf
+        self.slice_distance = np.ones(2 * self.delta**2 * self.m**2) * np.inf
+        self.slice_distance[self.z_axis] = self.epsilon
+        # self.slice_distance[self.x_axis] = np.inf
+        # self.slice_distance[self.y_axis] = np.inf
 
-    def slice_data(
+        # Slicing data
+        self.slice_data = []
+
+    def set_slice_data(
         self,
         data: list[np.ndarray],
     ) -> list[list[np.ndarray]]:
@@ -235,15 +257,34 @@ class DataSlicer:
         # AI GENERATED CODE
         bounds = np.stack(
             [
-                self.slice_values * self.slice_direction - self.slice_distance,
-                self.slice_values * self.slice_direction + self.slice_distance,
+                self.slice_values[:, None] * self.slice_direction - self.slice_distance,
+                self.slice_values[:, None] * self.slice_direction + self.slice_distance,
             ]
         )
 
-        out = []
-        for arr in data:
-            out.append([arr[((low < arr) & (arr <= up)).all(axis=1)] for low, up in bounds.T])
+        # logger.debug(f"Bounds shape: {bounds.shape}")
+        # logger.debug(f"Bounds: {bounds}")
 
+        # bounds shape: (2, n_slices, n_features)
+        # We want to iterate over n_slices and get (low, up) for each slice
+        bounds_per_slice = list(zip(bounds[0,], bounds[1,]))
+
+        out = [[], []]
+        total_vectors = [0, 0]
+        for i, arr in enumerate(data):
+            for j in tqdm(range(len(bounds_per_slice))):
+                low, up = bounds_per_slice[j]
+                mask = ((low < arr) & (arr <= up)).all(axis=1)
+                out[i].append(arr[mask, :])
+                total_vectors[i] += len(arr[mask, :])
+
+        logger.debug(f"Total vectors: {total_vectors}")
+
+        self.slice_data: list[list[np.ndarray]] = out
+        # Slice data contains the sliced data for each slice,
+        # that is, for each slice we have a list of arrays
+        # corresponding to the data groups
+        # logger.trace(f"Slice data: {self.slice_data}")
         return out
 
     def get_app(self) -> Dash:
@@ -273,15 +314,63 @@ class DataSlicer:
         )
         def update_graph(slice_index):
             fig = go.Figure()
-            for i, data_array in enumerate(self.data):
+            slice_index = int(slice_index)
+            colors = ["blue", "red"]
+            symbols = ["cross", "circle"]
+            opacities = [1, 1]
+            for i in [0, 1]:
+                opacities[i] = 0.1
+            names = ["SRNS", "Not SRNS"]
+            fig.update_layout(yaxis_range=[self.min, self.max], xaxis_range=[self.min, self.max])
+
+            for i, slices_list in enumerate(self.slice_data):
+                data_slice = slices_list[slice_index]
+                if data_slice.shape[0] == 0:
+                    continue
                 fig.add_trace(
                     go.Scatter(
-                        x=data_array[:, self.x_axis],
-                        y=data_array[:, self.y_axis],
+                        x=data_slice[:, self.x_axis],
+                        y=data_slice[:, self.y_axis],
                         mode="markers",
-                        name=f"Points {i}",
+                        marker=dict(
+                            color=colors[i],
+                            symbol=symbols[i],
+                            opacity=opacities[i],
+                        ),
+                        name=names[i],
                     )
                 )
             return fig
 
         return app
+
+
+if __name__ == "__main__":
+    logger.info("Loading data...")
+    data = DataLoader(
+        delta=2,
+        m=2,
+        size_limit=int(1e6),
+        data_dir=Path("data/view_srns"),
+    ).autoload(require_tagged=True)
+    logger.info("Data loaded.")
+
+    logger.info("Initializing data slicer...")
+    data_slicer = DataSlicer(
+        delta=2,
+        m=2,
+        data=data,
+        slice_relative_thickness=0.01,
+        axes=(0, 1, 16),
+    )
+    logger.info("Data slicer initialized.")
+
+    logger.info("Slicing data...")
+    data_slicer.set_slice_data(data)
+    logger.info("Data sliced.")
+
+    logger.info("Initializing app...")
+    app = data_slicer.get_app()
+
+    logger.info("Launching.")
+    app.run(debug=True)
