@@ -377,9 +377,7 @@ class ShortRangeNoSignalingSet(BehaviorSet):
     ) -> np.ndarray:
         is_facet, rank, vec_lambda = self.is_facet_hyperplane(sample)
 
-        if is_facet:
-            return vec_lambda[: self.routed_dim]
-        else:
+        if not is_facet:
             # raise ValueError(
             #     f"The behavior does not determine a facet hyperplane (found rank {rank})."
             # )
