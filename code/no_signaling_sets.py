@@ -99,10 +99,6 @@ class NoSignalingSet(BehaviorSet):
         """
         Generate the no-signaling equations for the routed case.
         """
-        # Polytope dimension
-        # dim = (2 * (delta - 1) * m) + ((delta - 1) ** 2 * m**2)
-        # logger.trace(f"Polytope dimension: {dim}")
-
         # Initialize the equations
         equations = []
         right_side = []
