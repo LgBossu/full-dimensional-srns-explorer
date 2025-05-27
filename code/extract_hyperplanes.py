@@ -400,3 +400,8 @@ class QuotientHyperplanes:
             raise TypeError(f"Axis must be an int or a str, got {type(axis)}")
 
         return self.flatten_list_of_hyperplanes(unformatted_res)
+
+    # TODO : continue class programming if relevant
+    # Refer to locally stored (or in previous versions)
+    # jupyter notebook regarding implementation of hyperplanes
+    # equivalence under permutations and quotienting.
