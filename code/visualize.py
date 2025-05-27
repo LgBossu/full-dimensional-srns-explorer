@@ -1,13 +1,19 @@
+"""
+A little attempt at a visualizing tool for the SRNS set.
+It allows to slice the data in a given direction and visualize it.
+Isn't actually useful to gain insight, consider it deprecated.
+"""
+
 import os
 from pathlib import Path
 
 import numpy as np
-import plotly.express as px
+
+# import plotly.express as px
 import plotly.graph_objects as go
 from dash import Dash, Input, Output, callback, dcc, html
 from loguru import logger
 from tqdm import tqdm
-# from math import log
 
 
 class DataLoader:

@@ -1,4 +1,20 @@
-# TODO : MIGHT NEED REFACTORING AFTER BEHAVIOR CLASS REFACTORING
+"""
+This module defines some sampling tools, that wrap around
+methods to generate points (behavior instances) to study.
+
+Notably, the `NoSignalingSampler` class can be instanciated on
+any values of `delta` and `m` (proper to the experimental
+setting) and, using the polytopewalk library [see references and
+licence], generates uniformly distributed samples in the
+no-signaling set of behaviors.
+
+These samples can be used for computational tasks, such as
+volume estimation of SRNS within NS, or hyperplanes search.
+
+The SamplesAnalyzer class aims to provide a few tools to
+analyze a sampled distribution, notably by plotting
+projections or computing statistics on the distribution.
+"""
 
 import sys
 from abc import ABC, abstractmethod
@@ -362,8 +378,14 @@ class SamplesAnalyzer:
 
 if __name__ == "__main__":
     # Example usage
+
+    # Set up the experiment parameters
     delta = 2
     m = 2
+    n_samples = int(5e5)
+    n_burn = 1000
+
+    # Configure the logger for console output clarity
     logger.remove()
     logger.add(
         sink=sys.stdout,
@@ -371,14 +393,24 @@ if __name__ == "__main__":
         level="INFO",
         colorize=True,
     )
+
+    # Name the saved files
     save_projections = "projection.png"
     save_uniform_histogram = "uniformity_histogram.png"
     save_uniform_text = "stats_exp.txt"
+
+    # Create the sampler and generate samples
     sampler = NoSignalingSampler(delta, m)
-    samples = sampler.sample_multiple(number_of_samples=int(3e7), number_to_burn=1000)
+    samples = sampler.sample_multiple(
+        number_of_samples=n_samples,
+        number_to_burn=n_burn,
+    )
+
+    # Instantiate the analyzer with the generated samples
     analyzer = SamplesAnalyzer(delta, m, samples)
-    # analyzer.check_samples_are_no_signaling(save_path=save_uniform_text)
+
+    # Do work with the samples !
     analyzer.plot_projection(save_path=save_projections, plot=False)
     analyzer.analyze_local_uniformity(
         save_fig=save_uniform_histogram, save_text=save_uniform_text, plot=False
-    )  # Crashes, likely memory overload
+    )  # Crashes on big samples, likely memory overload

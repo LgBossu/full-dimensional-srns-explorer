@@ -1,3 +1,14 @@
+"""
+A little utility script defining functions to help identify and
+extract non-srns points from a sampled distribution of points in
+NS.
+
+Non-SRNS points are of particular interest, since performing
+linear programming on them to test for belonging in SRNS yields,
+in dual variables, equations to potential SRNS facets. We thus
+isolate them in aggregated files for further analysis.
+"""
+
 import os
 from pathlib import Path
 
@@ -61,11 +72,15 @@ def extract_non_srns(points_file: Path, belonging_list_file: Path) -> list[np.nd
 
 
 if __name__ == "__main__":
+    # Usage
+
     # Get the list of files in the data directory
     try:
         dir_list = os.listdir(points_data)
     except FileNotFoundError as e:
-        print("Must run from the root directory of the repository.")
+        print(
+            "Must run from the root directory of the repository."
+        )  # We rely on relative paths for privacy
         raise e
 
     # Parse the data directory to get the list of files

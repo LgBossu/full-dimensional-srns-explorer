@@ -1,6 +1,21 @@
-"""This module aims to provide in matrix form the equations defining the no signaling set."""
+"""
+This module defines the BehaviorSet abstract class and its
+concrete implementation for no-signaling sets.
+Behaviors, as defined in the `behaviors` module, all come in
+sets based on the assumptions made on them. Like behaviors,
+these sets can be instantiated for various values of delta and
+m, characteristic of the experiment setting.
 
-# TODO : MIGHT NEED REFACTORING AFTER BEHAVIORS REFACTORING
+The goal of this module is to provide for every behavior
+modelization (or `set`) a class that can be used to compute the
+equations defining the set, and test belonging of a behavior to
+the set. Basic functionalities are defined in the abstract
+class, while concrete implementations are provided for
+no-signaling sets and the latent short-range distributions
+(noted `q` s.t. :
+        p is in SRNS  iif  p=f(q)
+in our notation).
+"""
 
 from abc import ABC, abstractmethod
 

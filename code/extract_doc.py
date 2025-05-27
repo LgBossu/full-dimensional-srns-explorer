@@ -1,3 +1,9 @@
+"""Extracts documentation from a Python module and writes it to a file.
+
+Helpful to traverse certain recently updated modules and extract
+their documentation, notably to parse and understand module
+usage better."""
+
 import importlib
 import inspect
 import pydoc
