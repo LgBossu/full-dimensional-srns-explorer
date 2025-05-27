@@ -1,6 +1,21 @@
-"""This module aims to provide in matrix form the equations defining the no signaling set."""
+"""
+This module defines the BehaviorSet abstract class and its
+concrete implementation for no-signaling sets.
+Behaviors, as defined in the `behaviors` module, all come in
+sets based on the assumptions made on them. Like behaviors,
+these sets can be instantiated for various values of delta and
+m, characteristic of the experiment setting.
 
-# TODO : MIGHT NEED REFACTORING AFTER BEHAVIORS REFACTORING
+The goal of this module is to provide for every behavior
+modelization (or `set`) a class that can be used to compute the
+equations defining the set, and test belonging of a behavior to
+the set. Basic functionalities are defined in the abstract
+class, while concrete implementations are provided for
+no-signaling sets and the latent short-range distributions
+(noted `q` s.t. :
+        p is in SRNS  iif  p=f(q)
+in our notation).
+"""
 
 from abc import ABC, abstractmethod
 
@@ -19,6 +34,7 @@ class BehaviorSet(ABC):
     def __init__(self, delta: int, m: int, routed: bool = True, positivity: bool = True):
         """
         Initialize the behavior set.
+
         :param delta: Number of outcomes for each measurement.
         :param m: Number of measurements.
         :param routed: Whether the set is viewed in the routed setting.
@@ -83,10 +99,6 @@ class NoSignalingSet(BehaviorSet):
         """
         Generate the no-signaling equations for the routed case.
         """
-        # Polytope dimension
-        # dim = (2 * (delta - 1) * m) + ((delta - 1) ** 2 * m**2)
-        # logger.trace(f"Polytope dimension: {dim}")
-
         # Initialize the equations
         equations = []
         right_side = []
@@ -302,6 +314,7 @@ class ShortRangeNoSignalingSet(BehaviorSet):
     ) -> OptimizeResult:
         """
         Test if the measured behavior is in the short-range no-signaling set.
+
         :param measured_behavior: The measured behavior to test.
         :return: The result of the optimization.
         """
@@ -334,19 +347,58 @@ class ShortRangeNoSignalingSet(BehaviorSet):
         else:
             raise ValueError(f"Optimization failed: {result.message}. Status code: {result.status}")
 
-    def get_hyperplane(
+    def is_facet_hyperplane(
         self,
         sample: behaviors.RoutedBehavior,
-    ) -> np.ndarray:
+        tolerance: float = 1e-10,
+    ) -> tuple[bool, int, np.ndarray]:
         try:
             res = self.lp_test(sample)
         except ValueError as e:
             logger.error(f"Error during LP test: {e}")
             return None
 
-        vec_lambda = -res.eqlin.marginals[: self.routed_dim]
+        vec_lambda = -res.eqlin.marginals
+        vec_mu = res.lower.marginals
 
-        # TODO
+        A_eq, _ = self.get_equations(sample)
+
+        lines_eq = A_eq[np.abs(vec_lambda) > tolerance]
+        lines_ineq = []
+        for i, val in enumerate(vec_mu):
+            if val > tolerance:
+                e = np.zeros(self.latent_dim + 1)
+                e[i] = 1  # Check if the coefficient is positive or negative
+                lines_ineq.append(e)
+
+        tot_constraints = np.vstack([lines_eq] + lines_ineq)
+
+        rank = np.linalg.matrix_rank(tot_constraints)
+
+        logger.trace(f"Vector lambda: {vec_lambda}")
+        logger.trace(f"Vector mu: {vec_mu}")
+        logger.trace(f"Rank of the constraints: {rank}")
+        logger.trace(f"Matrix of constraints: {tot_constraints}")
+
+        # logger.debug(f"Expected rank: {self.routed_dim}, found rank: {rank}")
+
+        return (rank == self.routed_dim), rank, vec_lambda
+
+    def get_facet_hyperplane(
+        self,
+        sample: behaviors.RoutedBehavior,
+    ) -> np.ndarray:
+        is_facet, rank, vec_lambda = self.is_facet_hyperplane(sample)
+
+        if not is_facet:
+            # raise ValueError(
+            #     f"The behavior does not determine a facet hyperplane (found rank {rank})."
+            # )
+            logger.warning(
+                f"The has rank {rank}, not yet identified as maximal hyperplane dimension."
+            )
+
+        return vec_lambda[: self.routed_dim]
 
     def is_in_set(
         self,
@@ -354,6 +406,7 @@ class ShortRangeNoSignalingSet(BehaviorSet):
     ) -> bool | None:
         """
         Test if the measured behavior is in the short-range no-signaling set.
+
         :param sample: The measured behavior to test.
         :return: True if the behavior is in the set, False if not, None if can't tell.
         """

@@ -1,3 +1,32 @@
+"""
+Some object oriented programming to define and work on
+"behaviors" (p(ab|xy) distributions) in the context of, notably,
+routed bell experiments.
+
+This module defines the abstract base class `Behavior` and its
+concrete implementations `RoutedBehavior` and
+`LatentSRNSBehavior`.
+
+  - **RoutedBehavior** represents measurable behaviors in the routed
+    experiment setting, assimilated to a p(ab|xyz) distribution (z
+    being the routing variable, usually z=S or L, short or long
+    path).
+  - **LatentSRNSBehavior** represents the latent behavior q such that p
+    is SRNS iff p=f(q), assimilated to the vector (q(ab|xy), q(a
+    beta|x)), where beta is a tuple-like object with m elements,
+    each in [0, delta-1]. That is, plainly, our way to model and
+    represent what a short-range no-signaling behavior is, in the
+    context of a routed experiment.
+
+These classes can be instanciated for any values of delta and m,
+respectively the number of possible outputs for Alice and Bob,
+and the number of possible inputs for Alice and Bob.
+They come with methods to convert between vector and matrix
+representations (for computation and comprehension respectively),
+to check conditions like positivity, normalization, and no-signaling,
+and other computational utilities.
+"""
+
 from abc import ABC, abstractmethod
 
 import numpy as np
@@ -13,6 +42,7 @@ class Behavior(ABC):
     def __init__(self, delta: int, m: int, vector: np.ndarray = None):
         """
         Initialize the behavior with delta and m parameters.
+
         :param delta: The number of possible outputs for Alice and Bob
         :param m: The number of possible inputs for Alice and Bob
         """
@@ -30,6 +60,7 @@ class Behavior(ABC):
     def behavior_vector_to_matrix(self, behavior_vector):
         """
         Convert a vector behavior to its matrix representation
+
         :param behavior_vector: The behavior vector
         :return: The behavior matrix
         """
@@ -39,6 +70,7 @@ class Behavior(ABC):
     def behavior_matrix_to_vector(self, behavior_matrix):
         """
         Convert a matrix behavior to its vector representation
+
         :param behavior_matrix: The behavior matrix
         :return: The behavior vector
         """
@@ -169,6 +201,7 @@ class RoutedBehavior(Behavior):
     def __init__(self, delta: int, m: int, vector: np.ndarray = None):
         """
         Initialize the behavior with delta and m parameters.
+
         :param delta: The number of possible outputs for Alice and Bob
         :param m: The number of possible inputs for Alice and Bob
         """
@@ -284,6 +317,7 @@ class LatentSRNSBehavior(Behavior):
     def __init__(self, delta: int, m: int, vector: np.ndarray = None):
         """
         Initialize the behavior with delta and m parameters.
+
         :param delta: The number of possible outputs for Alice and Bob
         :param m: The number of possible inputs for Alice and Bob
         """
@@ -659,6 +693,6 @@ if __name__ == "__main__":
 
     # for i in range(LatentSRNSBehavior(delta, m).dim_q):
     #     print(
-    #         f"Index {i} : {short_range_index_to_indices(i, delta, m)} --> {short_range_indices_to_index(short_range_index_to_indices(i, delta, m), delta, m)}"
+    #         f"Index {i} : {short_range_index_to_indices(i, delta, m)} --> {short_range_indices_to_index(short_range_index_to_indices(i, delta, m), delta, m)}"  # noqa: E501
     #     )
     # print()

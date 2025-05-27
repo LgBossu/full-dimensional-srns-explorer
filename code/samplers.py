@@ -1,4 +1,20 @@
-# TODO : MIGHT NEED REFACTORING AFTER BEHAVIOR CLASS REFACTORING
+"""
+This module defines some sampling tools, that wrap around
+methods to generate points (behavior instances) to study.
+
+Notably, the `NoSignalingSampler` class can be instanciated on
+any values of `delta` and `m` (proper to the experimental
+setting) and, using the polytopewalk library [see references and
+licence], generates uniformly distributed samples in the
+no-signaling set of behaviors.
+
+These samples can be used for computational tasks, such as
+volume estimation of SRNS within NS, or hyperplanes search.
+
+The SamplesAnalyzer class aims to provide a few tools to
+analyze a sampled distribution, notably by plotting
+projections or computing statistics on the distribution.
+"""
 
 import sys
 from abc import ABC, abstractmethod
@@ -359,26 +375,78 @@ class SamplesAnalyzer:
 
         return stats
 
+    def search_outliers(self, k=5, threshold=2.0):
+        """
+        Search for outliers in the sample set based on k-NN distances.
+
+        Parameters
+        ----------
+        k : int
+            Number of neighbors to consider.
+        threshold : float
+            Distance threshold to classify a point as an outlier.
+
+        Returns
+        -------
+        list
+            Indices of outlier points.
+        """
+        nbrs = NearestNeighbors(n_neighbors=k + 1, algorithm="auto").fit(self.samples)
+        distances, _ = nbrs.kneighbors(self.samples)
+
+        # Exclude the zero distance to the point itself
+        knn_distances = distances[:, 1:]
+
+        # Calculate mean and std for each point's k-NN distances
+        mean_dists = np.mean(knn_distances, axis=1)
+        std_dists = np.std(knn_distances, axis=1)
+
+        # Identify outliers based on the threshold
+        outliers = np.where(
+            (mean_dists > (mean_dists.mean() + threshold * std_dists))
+            | (mean_dists < (mean_dists.mean() - threshold * std_dists))
+        )[0]
+
+        logger.info(f"Found {len(outliers)} outliers based on k-NN distances.")
+        return outliers
+
 
 if __name__ == "__main__":
     # Example usage
+
+    # Set up the experiment parameters
     delta = 2
     m = 2
+    n_samples = int(1e5)
+    n_burn = int(1e5)
+
+    # Configure the logger for console output clarity
     logger.remove()
     logger.add(
         sink=sys.stdout,
         format="<level>{level:<10} | {message}</>",
-        level="INFO",
+        level="DEBUG",
         colorize=True,
     )
+
+    # Name the saved files
     save_projections = "projection.png"
     save_uniform_histogram = "uniformity_histogram.png"
     save_uniform_text = "stats_exp.txt"
+
+    # Create the sampler and generate samples
     sampler = NoSignalingSampler(delta, m)
-    samples = sampler.sample_multiple(number_of_samples=int(3e7), number_to_burn=1000)
+    samples = sampler.sample_multiple(
+        number_of_samples=n_samples,
+        number_to_burn=n_burn,
+    )
+
+    # Instantiate the analyzer with the generated samples
     analyzer = SamplesAnalyzer(delta, m, samples)
-    # analyzer.check_samples_are_no_signaling(save_path=save_uniform_text)
+
+    # Do work with the samples !
     analyzer.plot_projection(save_path=save_projections, plot=False)
     analyzer.analyze_local_uniformity(
-        save_fig=save_uniform_histogram, save_text=save_uniform_text, plot=False
-    )  # Crashes, likely memory overload
+        save_fig=save_uniform_histogram, save_text=save_uniform_text, plot=True
+    )  # Crashes on big samples by memory overload, be wary.
+    analyzer.search_outliers(k=5, threshold=2.0)
