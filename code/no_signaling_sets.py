@@ -34,6 +34,7 @@ class BehaviorSet(ABC):
     def __init__(self, delta: int, m: int, routed: bool = True, positivity: bool = True):
         """
         Initialize the behavior set.
+
         :param delta: Number of outcomes for each measurement.
         :param m: Number of measurements.
         :param routed: Whether the set is viewed in the routed setting.
@@ -317,6 +318,7 @@ class ShortRangeNoSignalingSet(BehaviorSet):
     ) -> OptimizeResult:
         """
         Test if the measured behavior is in the short-range no-signaling set.
+
         :param measured_behavior: The measured behavior to test.
         :return: The result of the optimization.
         """
@@ -408,6 +410,7 @@ class ShortRangeNoSignalingSet(BehaviorSet):
     ) -> bool | None:
         """
         Test if the measured behavior is in the short-range no-signaling set.
+
         :param sample: The measured behavior to test.
         :return: True if the behavior is in the set, False if not, None if can't tell.
         """

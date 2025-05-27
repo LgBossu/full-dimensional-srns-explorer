@@ -42,6 +42,7 @@ class Behavior(ABC):
     def __init__(self, delta: int, m: int, vector: np.ndarray = None):
         """
         Initialize the behavior with delta and m parameters.
+
         :param delta: The number of possible outputs for Alice and Bob
         :param m: The number of possible inputs for Alice and Bob
         """
@@ -59,6 +60,7 @@ class Behavior(ABC):
     def behavior_vector_to_matrix(self, behavior_vector):
         """
         Convert a vector behavior to its matrix representation
+
         :param behavior_vector: The behavior vector
         :return: The behavior matrix
         """
@@ -68,6 +70,7 @@ class Behavior(ABC):
     def behavior_matrix_to_vector(self, behavior_matrix):
         """
         Convert a matrix behavior to its vector representation
+
         :param behavior_matrix: The behavior matrix
         :return: The behavior vector
         """
@@ -198,6 +201,7 @@ class RoutedBehavior(Behavior):
     def __init__(self, delta: int, m: int, vector: np.ndarray = None):
         """
         Initialize the behavior with delta and m parameters.
+
         :param delta: The number of possible outputs for Alice and Bob
         :param m: The number of possible inputs for Alice and Bob
         """
@@ -313,6 +317,7 @@ class LatentSRNSBehavior(Behavior):
     def __init__(self, delta: int, m: int, vector: np.ndarray = None):
         """
         Initialize the behavior with delta and m parameters.
+
         :param delta: The number of possible outputs for Alice and Bob
         :param m: The number of possible inputs for Alice and Bob
         """
