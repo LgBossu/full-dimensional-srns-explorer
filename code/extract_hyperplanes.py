@@ -1,3 +1,4 @@
+import behaviors
 import no_signaling_sets
 import numpy as np
 from loguru import logger
@@ -12,7 +13,7 @@ class NonSRNSExtractor:
         self,
         delta: int,
         m: int,
-        samples: list[np.ndarray],
+        arbitrary_samples: list[np.ndarray],
         belonging: list[bool] | bool = False,
     ) -> None:
         """
@@ -23,20 +24,22 @@ class NonSRNSExtractor:
         :param samples: A list of samples (numpy arrays) to check against the no-signaling set.
         :param belonging: - A list of booleans indicating
         whether each sample belongs to the no-signaling set.
-                          - If True, all samples are assumed to belong to the set.
+                          - **If True, all samples are assumed to already lie
+                          OUTSIDE the set** (same as a list with only **FALSE**
+                          values).
                           - If False, belonging will be determined later.
         """
         self.delta = delta
         self.m = m
-        self.samples = samples
+        self.arbitrary_samples = arbitrary_samples
         self.belonging = belonging
 
         if isinstance(belonging, list):
-            if len(belonging) != len(samples):
+            if len(belonging) != len(arbitrary_samples):
                 raise ValueError("The length of belonging must match the number of samples.")
             self.known_belonging = True
         elif isinstance(belonging, bool) and belonging:
-            self.belonging = [True] * len(samples)
+            self.belonging = [False] * len(arbitrary_samples)
             self.known_belonging = True
         else:
             self.known_belonging = False
@@ -44,23 +47,27 @@ class NonSRNSExtractor:
     def belongs(
         self,
         sample: np.ndarray | int,
-        set: no_signaling_sets.ShortRangeNoSignalingSet,
+        srns_set: no_signaling_sets.ShortRangeNoSignalingSet,
     ) -> bool:
         if isinstance(sample, int):
-            sample = self.samples[sample]
+            sample = self.arbitrary_samples[sample]
         if not isinstance(sample, np.ndarray):
             raise TypeError("Sample must be a numpy array or an integer index.")
-        return set.is_in_set(sample)
+        return srns_set.is_in_set(sample)
 
-    def determine_belonging(self):
+    def determine_belonging(
+        self,
+        srns_set: no_signaling_sets.ShortRangeNoSignalingSet | None = None,
+    ) -> None:
         belonging_list = []
-        srns_set = no_signaling_sets.ShortRangeNoSignalingSet(
-            delta=self.delta,
-            m=self.m,
-        )
+        if srns_set is None:
+            srns_set = no_signaling_sets.ShortRangeNoSignalingSet(
+                delta=self.delta,
+                m=self.m,
+            )
 
         logger.info("Determining belonging of samples to the SRNS set...")
-        for sample in tqdm(self.samples):
+        for sample in tqdm(self.arbitrary_samples):
             belonging_list.append(self.belongs(sample, srns_set))
 
         logger.info(f"Belonging determined for {len(belonging_list)} samples.")
@@ -69,7 +76,7 @@ class NonSRNSExtractor:
         self.belonging = belonging_list
         self.known_belonging = True
 
-    def extract(self) -> list[np.ndarray]:
+    def extract_non_srns(self) -> list[np.ndarray]:
         """From the provided samples and information, extracts
         only vectors that do NOT belong to SRNS."""
 
@@ -77,25 +84,152 @@ class NonSRNSExtractor:
             logger.warning("Belonging is not known, determining belonging now.")
             self.determine_belonging()
 
-        arr_samples = np.array(self.samples)
+        arr_samples = np.array(self.arbitrary_samples)
         arr_belonging = np.array(self.belonging, dtype=bool)
 
         return list(arr_samples[~arr_belonging])
 
 
 class HyperplanesExtractor:
+    """
+    A class to extract hyperplanes from samples that do not belong to the
+    Short-Range No-Signaling Set.
+    """
+
     def __init__(
         self,
         delta: int,
         m: int,
-        samples: list[np.ndarray],
+        non_srns_samples: list[np.ndarray],
     ) -> None:
         """
         Initializes the HyperplanesExtractor with the given parameters.
+
         :param delta: The delta value for the no-signaling set.
         :param m: The m value for the no-signaling set.
         :param samples: A list of samples (numpy arrays) **assumed to NOT belong to the SRNS set**.
         """
         self.delta = delta
         self.m = m
-        self.samples = samples
+        self.non_srns_samples = non_srns_samples
+
+    # HYPERPLANE UTILS
+    def scale_down_vector(
+        vector: np.ndarray,
+        atol: float = 1e-10,
+    ) -> np.ndarray:
+        """
+        If all elements are equal to a common factor up to sign
+        changes, we rescale the vector by that factor to make
+        it a vector of integers {-1, 0, +1}.
+
+        - Raises a **ValueError** if the vector cannot be scaled down uniformly.
+        - Raises a **ZeroDivisionError** on the zero vector (or vectors close to it).
+
+        - **Else, returns the rescaled vector as an integer array.**
+
+        *(It just so happened experimentally that in low
+        dimensions, this rescaling can be done for all
+        hyperplanes somehow.)*
+        """
+        mask = np.abs(vector) > atol
+        # Mask to work on the non-zero elements
+
+        if not np.any(mask):
+            raise ZeroDivisionError(
+                "Vector cannot be scaled down uniformly: all elements are zero or close to."
+            )
+
+        factor = np.abs(vector[mask])[0]
+
+        abs_is_cst = np.allclose(
+            np.abs(vector[mask]),
+            factor,
+            atol=atol,
+        )  # Check that all non-zero elements are equal to the factor
+
+        if abs_is_cst:
+            # Divide by the factor and round to nearest integer to avoid floating point issues
+            rescaled = np.zeros_like(vector)
+            rescaled[mask] = np.round(vector[mask] / factor).astype(int)
+            return rescaled.astype(int)
+        else:
+            raise ValueError(f"Vector cannot be scaled down uniformly : {vector}")
+
+    def normalize_vector(vector: np.ndarray) -> np.ndarray:
+        """
+        Normalizes the vector to have unit length.
+        If the vector is close to zero, it returns the zero vector.
+        """
+        if np.allclose(vector, 0, atol=1e-10):
+            return vector
+        else:
+            return vector / np.linalg.norm(vector)
+
+    def canonicalize(eq: np.ndarray) -> np.ndarray:
+        """
+        Canonicalizes a hypeperplane equation by flattening its array if needed,
+        and setting the first nonzero element to be positive.
+
+        This enables consistent representation of hyperplanes, for later
+        comparison in sets.
+
+        Note that :
+        - This may switch the sign of the hyperplane equation (ie, the normal vector's direction).
+        - This does not guarantee that the hyperplane is normalized (ie, unit length).
+        - This returns a 1D numpy array.
+        """
+        flat = eq.flatten()
+        idx = np.flatnonzero(flat)
+        if idx.size and flat[idx[0]] < 0:
+            flat = -flat
+        return flat
+
+    # HYPERPLANE EXTRACTION
+    def extract_from_vector(
+        self,
+        vector: np.ndarray,
+        srns_set: no_signaling_sets.ShortRangeNoSignalingSet,
+    ) -> np.ndarray:
+        # Get the hyperplane equation from the vector
+        hyperplane_eq = srns_set.get_facet_hyperplane(behaviors.RoutedBehavior(vector))
+
+        # Scale down the hyperplane equation to have integer coefficients
+        try:
+            hyperplane_eq = self.scale_down_vector(hyperplane_eq)
+        except ValueError:
+            logger.warning(f"Vector {vector} cannot be scaled down uniformly, normalizing instead.")
+            hyperplane_eq = self.normalize_vector(hyperplane_eq)
+        except ZeroDivisionError as e:
+            logger.error("Vector is zero or close to zero, should not be a hyperplane.")
+            raise e
+
+        return hyperplane_eq
+
+    def extract_hyperplanes(
+        self,
+        srns_set: no_signaling_sets.ShortRangeNoSignalingSet | None = None,
+    ) -> list[np.ndarray]:
+        """
+        Extracts hyperplanes from the provided samples.
+
+        :param srns_set: The ShortRangeNoSignalingSet to use for extracting
+        hyperplanes. Automatically created if None.
+        :return: A list of hyperplane equations (numpy arrays).
+        """
+        if srns_set is None:
+            srns_set = no_signaling_sets.ShortRangeNoSignalingSet(
+                delta=self.delta,
+                m=self.m,
+            )
+        hyperplanes = []
+        logger.info("Extracting hyperplanes from samples...")
+        for sample in tqdm(self.non_srns_samples):
+            try:
+                hyperplane_eq = self.extract_from_vector(sample, srns_set)
+                hyperplanes.append(hyperplane_eq)
+            except ZeroDivisionError as e:
+                logger.error(f"Skipping zero vector: {sample}. Error: {e}")
+                hyperplanes.append(None)  # Append None for index consistency
+
+        return hyperplanes
