@@ -256,18 +256,13 @@ class QuotientHyperplanes:
         self,
         equation: np.ndarray,
     ) -> tuple[np.ndarray]:
-        # # By convention, we give equations a sign such that
-        # the first non-zero element is positive.
-        # first_nonzero_idx = np.flatnonzero(equation)[0]
-        # if equation[first_nonzero_idx] < 0:
-        #     equation = -equation
         # TODO : ensure the function is applied to canonicalized hyperplanes.
 
         el_S, el_L, el_NS = (
             equation[0 : self.delta**2 * self.m**2],
             equation[self.delta**2 * self.m**2 : 2 * self.delta**2 * self.m**2],
             equation[2 * self.delta**2 * self.m**2 :],
-        )  # noqa: E501
+        )
         el_S = el_S.reshape((self.delta, self.delta, self.m, self.m))
         el_L = el_L.reshape((self.delta, self.delta, self.m, self.m))
         el_NS = el_NS.reshape((self.delta,) * self.m)
@@ -290,11 +285,6 @@ class QuotientHyperplanes:
         el_S, el_L, el_NS = hyperplane
 
         equation = np.concatenate((el_S.flatten(), el_L.flatten(), el_NS.flatten()))
-
-        # # By convention, we give equations a sign such that the first non-zero element is positive.
-        # first_nonzero_idx = np.flatnonzero(equation)[0]
-        # if equation[first_nonzero_idx] < 0:
-        #     equation = -equation
 
         return equation
 
