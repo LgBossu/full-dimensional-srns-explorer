@@ -375,6 +375,41 @@ class SamplesAnalyzer:
 
         return stats
 
+    def search_outliers(self, k=5, threshold=2.0):
+        """
+        Search for outliers in the sample set based on k-NN distances.
+
+        Parameters
+        ----------
+        k : int
+            Number of neighbors to consider.
+        threshold : float
+            Distance threshold to classify a point as an outlier.
+
+        Returns
+        -------
+        list
+            Indices of outlier points.
+        """
+        nbrs = NearestNeighbors(n_neighbors=k + 1, algorithm="auto").fit(self.samples)
+        distances, _ = nbrs.kneighbors(self.samples)
+
+        # Exclude the zero distance to the point itself
+        knn_distances = distances[:, 1:]
+
+        # Calculate mean and std for each point's k-NN distances
+        mean_dists = np.mean(knn_distances, axis=1)
+        std_dists = np.std(knn_distances, axis=1)
+
+        # Identify outliers based on the threshold
+        outliers = np.where(
+            (mean_dists > (mean_dists.mean() + threshold * std_dists))
+            | (mean_dists < (mean_dists.mean() - threshold * std_dists))
+        )[0]
+
+        logger.info(f"Found {len(outliers)} outliers based on k-NN distances.")
+        return outliers
+
 
 if __name__ == "__main__":
     # Example usage
@@ -382,15 +417,15 @@ if __name__ == "__main__":
     # Set up the experiment parameters
     delta = 2
     m = 2
-    n_samples = int(5e5)
-    n_burn = 1000
+    n_samples = int(1e5)
+    n_burn = int(1e5)
 
     # Configure the logger for console output clarity
     logger.remove()
     logger.add(
         sink=sys.stdout,
         format="<level>{level:<10} | {message}</>",
-        level="INFO",
+        level="DEBUG",
         colorize=True,
     )
 
@@ -412,5 +447,6 @@ if __name__ == "__main__":
     # Do work with the samples !
     analyzer.plot_projection(save_path=save_projections, plot=False)
     analyzer.analyze_local_uniformity(
-        save_fig=save_uniform_histogram, save_text=save_uniform_text, plot=False
-    )  # Crashes on big samples, likely memory overload
+        save_fig=save_uniform_histogram, save_text=save_uniform_text, plot=True
+    )  # Crashes on big samples by memory overload, be wary.
+    analyzer.search_outliers(k=5, threshold=2.0)
