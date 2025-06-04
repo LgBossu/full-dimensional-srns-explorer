@@ -117,6 +117,7 @@ class HyperplanesExtractor:
 
     # UTILS
     def scale_down_vector(
+        self,
         vector: np.ndarray,
         atol: float = 1e-10,
     ) -> np.ndarray:
@@ -158,7 +159,10 @@ class HyperplanesExtractor:
         else:
             raise ValueError(f"Vector cannot be scaled down uniformly : {vector}")
 
-    def normalize_vector(vector: np.ndarray) -> np.ndarray:
+    def normalize_vector(
+        self,
+        vector: np.ndarray,
+    ) -> np.ndarray:
         """
         Normalizes the vector to have unit length.
         If the vector is close to zero, it returns the zero vector.
@@ -175,7 +179,9 @@ class HyperplanesExtractor:
         srns_set: no_signaling_sets.ShortRangeNoSignalingSet,
     ) -> np.ndarray:
         # Get the hyperplane equation from the vector
-        hyperplane_eq = srns_set.get_facet_hyperplane(behaviors.RoutedBehavior(vector))
+        hyperplane_eq = srns_set.get_facet_hyperplane(
+            behaviors.RoutedBehavior(self.delta, self.m, vector)
+        )
 
         # Scale down the hyperplane equation to have integer coefficients
         try:
