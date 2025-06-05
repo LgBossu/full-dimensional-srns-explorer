@@ -33,13 +33,21 @@ import numpy as np
 from loguru import logger
 
 
+class DeprecationError(Exception):
+    """
+    Custom exception to indicate that a feature is deprecated.
+    """
+
+    pass
+
+
 class Behavior(ABC):
     """
     Abstract class for defining behaviors.
     """
 
     # CONSTRUCTOR
-    def __init__(self, delta: int, m: int, vector: np.ndarray = None):
+    def __init__(self, delta: int, m: int, vector: np.ndarray | None = None):
         """
         Initialize the behavior with delta and m parameters.
 
@@ -53,28 +61,39 @@ class Behavior(ABC):
         self.delta = delta
         self.m = m
         self.behavior_vector = vector
-        self.vector_shape: tuple[int] = None  # The dimension of the latent space
+        self.vector_shape: tuple[int] | None = None  # The dimension of the latent space
 
     # VECTOR AND MATRIX FORMS CONVERSIONS
     @abstractmethod
-    def behavior_vector_to_matrix(self, behavior_vector):
+    def behavior_vector_to_matrix(
+        self, behavior_vector: np.ndarray | None
+    ) -> np.ndarray | list[np.ndarray]:
         """
         Convert a vector behavior to its matrix representation
 
         :param behavior_vector: The behavior vector
         :return: The behavior matrix
         """
-        pass
+        if behavior_vector is None:
+            raise ValueError("Cannot call behavior_vector_to_matrix with None.")
+
+        return behavior_vector.reshape(self.vector_shape)
 
     @abstractmethod
-    def behavior_matrix_to_vector(self, behavior_matrix):
+    def behavior_matrix_to_vector(
+        self, behavior_matrix: np.ndarray | list[np.ndarray] | None
+    ) -> np.ndarray:
         """
         Convert a matrix behavior to its vector representation
 
         :param behavior_matrix: The behavior matrix
         :return: The behavior vector
         """
-        pass
+        if behavior_matrix is None:
+            raise ValueError("Cannot call behavior_matrix_to_vector with None.")
+        if isinstance(behavior_matrix, list):
+            return np.concatenate([bm.flatten() for bm in behavior_matrix], axis=0)
+        return behavior_matrix.flatten()
 
     def get_vector_element(self, index: int):
         if self.behavior_vector is None:
@@ -82,11 +101,14 @@ class Behavior(ABC):
         return self.behavior_vector[index]
 
     @abstractmethod
-    def get_matrix_element(self, indices: tuple):
+    def get_matrix_element(self, indices: tuple) -> float:
         """
         In the matrix representation, get the element at the given indices.
         """
-        pass
+        return 0.0
+        # This method should be implemented in the subclasses to
+        # return the element at the given indices in the matrix
+        # representation.
 
     # GETTERS
     def get_vector(self):
@@ -102,6 +124,8 @@ class Behavior(ABC):
         return self.m
 
     def get_vector_shape(self):
+        if self.vector_shape is None:
+            raise ValueError("Vector shape is not initialized.")
         return self.vector_shape
 
     # STRING REPRESENTATIONS
@@ -110,49 +134,74 @@ class Behavior(ABC):
 
     @abstractmethod
     def __str__(self):
-        pass
+        return super().__str__()
 
     # EQUALITY
     @abstractmethod
-    def compare_array(self, other):
+    def compare_array(self, other: object) -> "Behavior | None":
         """
         Determine if the other object can be compared to this behavior
         """
-        pass
+        return None
+        # This method should return a comparable Behavior object
+        # or None if the other object is not compatible.
 
     def __eq__(self, other):
+        if self.behavior_vector is None:
+            raise ValueError("Behavior vector is not initialized.")
         comparable = self.compare_array(other)
         if comparable:
+            if comparable.behavior_vector is None:
+                raise ValueError(
+                    "Comparable behavior vector is not initialized."
+                )  # This error should never happen. I am keeping the linter happy.
             return np.array_equal(self.behavior_vector, comparable.behavior_vector)
         return False
 
     def __ne__(self, other):
+        if self.behavior_vector is None:
+            raise ValueError("Behavior vector is not initialized.")
         comparable = self.compare_array(other)
         if comparable:
+            if comparable.behavior_vector is None:
+                raise ValueError("Comparable behavior vector is not initialized.")
+            # This error should never happen. I am keeping the linter happy.
             return not np.array_equal(self.behavior_vector, comparable.behavior_vector)
         return True
 
     def __lt__(self, other):
         comparable = self.compare_array(other)
         if comparable:
+            if comparable.behavior_vector is None:
+                raise ValueError("Comparable behavior vector is not initialized.")
+            # This error should never happen. I am keeping the linter happy.
             return np.all(self.behavior_vector < comparable.behavior_vector)
         return False
 
     def __le__(self, other):
         comparable = self.compare_array(other)
         if comparable:
+            if comparable.behavior_vector is None:
+                raise ValueError("Comparable behavior vector is not initialized.")
+            # This error should never happen. I am keeping the linter happy.
             return np.all(self.behavior_vector <= comparable.behavior_vector)
         return False
 
     def __gt__(self, other):
         comparable = self.compare_array(other)
         if comparable:
+            if comparable.behavior_vector is None:
+                raise ValueError("Comparable behavior vector is not initialized.")
+            # This error should never happen. I am keeping the linter happy.
             return np.all(self.behavior_vector > comparable.behavior_vector)
         return False
 
     def __ge__(self, other):
         comparable = self.compare_array(other)
         if comparable:
+            if comparable.behavior_vector is None:
+                raise ValueError("Comparable behavior vector is not initialized.")
+            # This error should never happen. I am keeping the linter happy.
             return np.all(self.behavior_vector >= comparable.behavior_vector)
         return False
 
@@ -169,26 +218,32 @@ class Behavior(ABC):
 
     # CONDITIONS
     def positivity(self):
-        return self >= 0
+        return bool(self >= 0)
 
     @abstractmethod
-    def normalization(self, atol=1e-10):
+    def normalization(self, atol: float = 1e-10) -> bool:
         """
         Check if the behavior is normalized
         """
-        pass
+        return False
+        # This method should be implemented in the subclasses to
+        # check if the behavior is normalized, i.e., if the sum
+        # of the probabilities is equal to 1 (within a given
+        # tolerance).
 
     @abstractmethod
-    def no_signaling(self, atol=1e-10):
+    def no_signaling(self, atol: float = 1e-10) -> bool:
         """
         Check if the behavior is no-signaling
         """
-        pass
+        return False
+        # This method should be implemented in the subclasses to
+        # check if the behavior satisfies the no-signaling condition.
 
-    def is_normalized(self, atol=1e-10):
+    def is_normalized(self, atol: float = 1e-10) -> bool:
         return self.positivity() and self.normalization(atol=atol)
 
-    def is_no_signaling(self, atol=1e-10):
+    def is_no_signaling(self, atol: float = 1e-10) -> bool:
         return self.positivity() and self.normalization(atol=atol) and self.no_signaling(atol=atol)
 
 
@@ -198,7 +253,7 @@ class RoutedBehavior(Behavior):
     assimilated to a p(ab|xyz) distribution.
     """
 
-    def __init__(self, delta: int, m: int, vector: np.ndarray = None):
+    def __init__(self, delta: int, m: int, vector: np.ndarray | None = None):
         """
         Initialize the behavior with delta and m parameters.
 
@@ -211,18 +266,25 @@ class RoutedBehavior(Behavior):
 
         self.matrix_shape = (2, delta**2, m**2)
 
-        if vector is not None:
+        if self.behavior_vector is not None:
             assert (
                 self.behavior_vector.shape == (2 * delta**2 * m**2,)
             ), f"Invalid shape {self.behavior_vector.shape}. Expected {self.vector_shape}, to match declared values (delta={self.delta}, m={self.m})."  # noqa: E501
 
     def behavior_vector_to_matrix(self, behavior_vector):
+        if behavior_vector is None:
+            raise ValueError("Cannot call behavior_vector_to_matrix with None.")
         return np.reshape(behavior_vector, self.matrix_shape)
 
     def behavior_matrix_to_vector(self, behavior_matrix):
+        assert isinstance(
+            behavior_matrix, np.ndarray
+        ), "Expected behavior_matrix to be a numpy array for RoutedBehavior."
+        assert isinstance(self.vector_shape, tuple), "vector_shape must be a tuple."
+
         return np.reshape(behavior_matrix, self.vector_shape)
 
-    def get_matrix_element(self, indices: tuple):
+    def get_matrix_element(self, indices: tuple) -> float:
         """
         In the matrix representation, get the element at the given indices.
         For RoutedBehavior, the indices are expected in the form (z, a, b, x, y).
@@ -230,9 +292,8 @@ class RoutedBehavior(Behavior):
         if len(indices) != 5:
             raise ValueError("Expected 5 indices (z, a, b, x, y).")
         a, b, x, y, z = indices
-        return self.behavior_vector_to_matrix(self.behavior_vector)[
-            z, self.delta * a + b, self.m * x + y
-        ]
+        res = self.behavior_vector_to_matrix(self.behavior_vector)
+        return float(res[z, self.delta * a + b, self.m * x + y])
 
     def __str__(self):
         matrix_form = self.behavior_vector_to_matrix(self.behavior_vector)
@@ -244,6 +305,12 @@ class RoutedBehavior(Behavior):
 
     def compare_array(self, other):
         logger.trace(f"Checking if variable {other} can be treated as a Behavior for comparisons")
+
+        # Keep the linter happy
+        if self.behavior_vector is None:
+            raise ValueError("Behavior vector is not initialized.")
+        if self.vector_shape is None:
+            raise ValueError("Vector shape is not initialized.")
 
         if isinstance(other, RoutedBehavior):
             if other.delta == self.delta and other.m == self.m:
@@ -274,10 +341,17 @@ class RoutedBehavior(Behavior):
         """
         matrix = self.get_matrix()
         if _debug:
-            return np.sum(matrix, axis=1)
-        return np.all(abs(np.sum(matrix, axis=1) - 1) < atol)
+            raise DeprecationError(
+                "Debug mode is no longer supported for RoutedBehavior.normalization"
+            )
+            # return np.sum(matrix, axis=1)
+        res = np.all(abs(np.sum(matrix, axis=1) - 1) < atol)
+        return bool(res)
 
     def no_signaling(self, atol=1e-10, _debug: bool = False):
+        assert (
+            self.behavior_vector is not None
+        ), "Behavior vector must be initialized for no_signaling check."
         summable = np.reshape(self.behavior_vector, (2, self.delta, self.delta, self.m, self.m))
 
         sum_over_a: np.ndarray = np.sum(summable, axis=1)
@@ -294,17 +368,21 @@ class RoutedBehavior(Behavior):
         # Reshape to have every row as a different p(a|x)
 
         if _debug:
-            return (
-                sum_over_a,
-                sum_over_b,
+            raise DeprecationError(
+                "Debug mode is no longer supported for RoutedBehavior.no_signaling"
             )
+            # return (
+            #     sum_over_a,
+            #     sum_over_b,
+            # )
 
         a_checksum = np.abs(sum_over_a - sum_over_a[:, [0]]) < atol
         b_checksum = np.abs(sum_over_b - sum_over_b[:, [0]]) < atol
 
         a_no_signaling = np.all(a_checksum, axis=1)
         b_no_signaling = np.all(b_checksum, axis=1)
-        return np.all(a_no_signaling) and np.all(b_no_signaling)
+        res = np.all(a_no_signaling) and np.all(b_no_signaling)
+        return bool(res)
 
 
 class LatentSRNSBehavior(Behavior):
@@ -314,7 +392,7 @@ class LatentSRNSBehavior(Behavior):
     Assimilated to the vector (q(ab|xy), q(a beta|x))
     """
 
-    def __init__(self, delta: int, m: int, vector: np.ndarray = None):
+    def __init__(self, delta: int, m: int, vector: np.ndarray | None = None):
         """
         Initialize the behavior with delta and m parameters.
 
@@ -330,20 +408,25 @@ class LatentSRNSBehavior(Behavior):
 
         self.matrix_shapes = [(self.delta**2, self.m**2), (self.delta ** (self.m + 1), self.m)]
 
-        if vector is not None:
+        if self.behavior_vector is not None:
             assert (
                 self.behavior_vector.shape == (self.dim_q,)
             ), f"Invalid shape {self.behavior_vector.shape}. Expected {self.vector_shape}, to match declared values (delta={self.delta}, m={self.m})."  # noqa: E501
 
-    def behavior_vector_to_matrix(self, behavior_vector):
+    def behavior_vector_to_matrix(self, behavior_vector: np.ndarray | None):
+        if behavior_vector is None:
+            raise ValueError("Cannot call behavior_vector_to_matrix with None.")
         q_short = behavior_vector[: self.dim_q_s]
         q_long = behavior_vector[self.dim_q_s :]
 
         q_short = np.reshape(q_short, self.matrix_shapes[0])
         q_long = np.reshape(q_long, self.matrix_shapes[1])
-        return q_short, q_long
+        return [q_short, q_long]
 
-    def behavior_matrix_to_vector(self, behavior_matrix):
+    def behavior_matrix_to_vector(self, behavior_matrix: np.ndarray | list[np.ndarray] | None):
+        assert isinstance(
+            behavior_matrix, list
+        ), "Expected behavior_matrix to be a list of numpy arrays for LatentSRNSBehavior."
         q_short = behavior_matrix[0]
         q_long = behavior_matrix[1]
 
@@ -366,7 +449,7 @@ class LatentSRNSBehavior(Behavior):
             if len(loc_tuple) != 4:
                 raise ValueError("Expected 4 indices (a, b, x, y) to locate on short path.")
             a, b, x, y = loc_tuple
-            return mat_form[0][self.delta * a + b, self.m * x + y]
+            return float(mat_form[0][self.delta * a + b, self.m * x + y])
         elif z == 1:
             if len(loc_tuple) != 3:
                 raise ValueError("Expected 3 indices (a, beta, x) to locate on long path.")
@@ -377,7 +460,9 @@ class LatentSRNSBehavior(Behavior):
             id_beta = int(id_beta, self.delta)
             if id_beta >= self.delta**self.m:
                 raise ValueError(f"Invalid beta index {id_beta} for delta={self.delta}.")
-            return mat_form[1][id_beta + (self.delta**self.m * a), x]
+            return float(mat_form[1][id_beta + (self.delta**self.m * a), x])
+        else:
+            raise ValueError("Expected z to be either 0 (short path) or 1 (long path).")
 
     def __str__(self):
         q_short, q_long = self.get_matrix()
@@ -416,6 +501,8 @@ class LatentSRNSBehavior(Behavior):
             )
 
         elif isinstance(other, int) or isinstance(other, float):
+            if self.vector_shape is None:
+                raise ValueError("Vector shape is not initialized.")
             return LatentSRNSBehavior(self.delta, self.m, np.ones(self.vector_shape) * other)
 
         else:
@@ -431,13 +518,21 @@ class LatentSRNSBehavior(Behavior):
         """
         q_short, q_long = self.behavior_vector_to_matrix(self.behavior_vector)
         if _debug:
-            return np.sum(q_short, axis=0), np.sum(q_long, axis=0)
-            # Check the aspect of the sum to verify we check the correct sum
-        return np.all(abs(np.sum(q_short, axis=0) - 1) < atol) and np.all(
+            raise DeprecationError(
+                "Debug mode is no longer supported for LatentSRNSBehavior.normalization"
+            )
+            # return np.sum(q_short, axis=0), np.sum(q_long, axis=0)
+            # # Check the aspect of the sum to verify we check the correct sum
+        res = np.all(abs(np.sum(q_short, axis=0) - 1) < atol) and np.all(
             abs(np.sum(q_long, axis=0) - 1) < atol
         )
+        return bool(res)
 
     def no_signaling(self, atol=1e-10, _debug: bool = False):
+        assert (
+            self.behavior_vector is not None
+        ), "Behavior vector must be initialized for no_signaling check."
+
         q_short, q_long = self.behavior_vector_to_matrix(self.behavior_vector)
 
         # No-signaling condition on Alice's side
@@ -486,11 +581,14 @@ class LatentSRNSBehavior(Behavior):
         # Every row is now a different q(a|x)
 
         if _debug:
-            return (
-                sum_over_a_short,
-                sum_over_a_long,
-                sum_over_b,
+            raise DeprecationError(
+                "Debug mode is no longer supported for LatentSRNSBehavior.no_signaling"
             )
+            # return (
+            #     sum_over_a_short,
+            #     sum_over_a_long,
+            #     sum_over_b,
+            # )
 
         a_checksum_short = np.abs(sum_over_a_short - sum_over_a_short[:, [0]]) < atol
         a_checksum_long = np.abs(sum_over_a_long - sum_over_a_long[:, [0]]) < atol
@@ -500,9 +598,10 @@ class LatentSRNSBehavior(Behavior):
         a_no_signaling_long = np.all(a_checksum_long, axis=1)
         b_no_signaling = np.all(b_checksum, axis=1)
 
-        return (
+        res = (
             np.all(a_no_signaling_short) and np.all(a_no_signaling_long) and np.all(b_no_signaling)
         )
+        return bool(res)
 
 
 # COORDINATE UTILS
@@ -594,105 +693,106 @@ pr_box = RoutedBehavior(
 
 
 if __name__ == "__main__":
-    check_vec: np.ndarray = np.array(
-        [
-            [
-                [
-                    ["p0000S", "p0001S", "p0010S", "p0011S"],
-                    ["p0100S", "p0101S", "p0110S", "p0111S"],
-                ],
-                [
-                    ["p1000S", "p1001S", "p1010S", "p1011S"],
-                    ["p1100S", "p1101S", "p1110S", "p1111S"],
-                ],
-            ],
-            [
-                [
-                    ["p0000L", "p0001L", "p0010L", "p0011L"],
-                    ["p0100L", "p0101L", "p0110L", "p0111L"],
-                ],
-                [
-                    ["p1000L", "p1001L", "p1010L", "p1011L"],
-                    ["p1100L", "p1101L", "p1110L", "p1111L"],
-                ],
-            ],
-        ],
-        dtype=object,
-    )
+    pass
+    # check_vec: np.ndarray = np.array(
+    #     [
+    #         [
+    #             [
+    #                 ["p0000S", "p0001S", "p0010S", "p0011S"],
+    #                 ["p0100S", "p0101S", "p0110S", "p0111S"],
+    #             ],
+    #             [
+    #                 ["p1000S", "p1001S", "p1010S", "p1011S"],
+    #                 ["p1100S", "p1101S", "p1110S", "p1111S"],
+    #             ],
+    #         ],
+    #         [
+    #             [
+    #                 ["p0000L", "p0001L", "p0010L", "p0011L"],
+    #                 ["p0100L", "p0101L", "p0110L", "p0111L"],
+    #             ],
+    #             [
+    #                 ["p1000L", "p1001L", "p1010L", "p1011L"],
+    #                 ["p1100L", "p1101L", "p1110L", "p1111L"],
+    #             ],
+    #         ],
+    #     ],
+    #     dtype=object,
+    # )
 
-    check_vec = check_vec.reshape(2, 4, 4)
+    # check_vec = check_vec.reshape(2, 4, 4)
 
-    check: RoutedBehavior = RoutedBehavior(
-        delta=2,
-        m=2,
-        vector=check_vec.reshape(
-            32,
-        ),
-    )
-    # print(check)
-    # print(check.get_vector())
-    sum_over_a, sum_over_b = check.no_signaling(_debug=True)
-    print("sum_over_a")
-    print(sum_over_a)
-    print()
-    print("sum_over_b")
-    print(sum_over_b)
-    print()
-
-    print("\n\n------\n\n")
-
-    check_latent_short: np.ndarray = np.array(
-        [
-            ["p0000S", "p0001S", "p0010S", "p0011S"],
-            ["p0100S", "p0101S", "p0110S", "p0111S"],
-            ["p1000S", "p1001S", "p1010S", "p1011S"],
-            ["p1100S", "p1101S", "p1110S", "p1111S"],
-        ]
-    )
-    check_latent_long: np.ndarray = np.array(
-        [
-            ["p0(00)0L", "p0(00)1L"],
-            ["p0(01)0L", "p0(01)1L"],
-            ["p0(10)0L", "p0(10)1L"],
-            ["p0(11)0L", "p0(11)1L"],
-            ["p1(00)0L", "p1(00)1L"],
-            ["p1(01)0L", "p1(01)1L"],
-            ["p1(10)0L", "p1(10)1L"],
-            ["p1(11)0L", "p1(11)1L"],
-        ],
-        dtype=object,
-    )
-
-    check_latent_vect: np.ndarray = np.concatenate(
-        (
-            check_latent_short.reshape(16),
-            check_latent_long.reshape(16),
-        ),
-        axis=0,
-    )
-    check_latent: LatentSRNSBehavior = LatentSRNSBehavior(
-        delta=2,
-        m=2,
-        vector=check_latent_vect,
-    )
-    # print(check_latent)
-    # print(check_latent.get_vector())
-    # print(check_latent.get_matrix_element((1, 1, (1, 0), 1)))
-    sum_over_a_short, sum_over_a_long, sum_over_b = check_latent.no_signaling(_debug=True)
-    print("sum_over_a_short (p(b|yS))")
-    print(sum_over_a_short)
-    print()
-    print("sum_over_a_long (p(beta|L))")
-    print(sum_over_a_long)
-    print()
-    print("sum_over_b (p(a|x))")
-    print(sum_over_b)
-
-    # delta = 2
-    # m = 2
-
-    # for i in range(LatentSRNSBehavior(delta, m).dim_q):
-    #     print(
-    #         f"Index {i} : {short_range_index_to_indices(i, delta, m)} --> {short_range_indices_to_index(short_range_index_to_indices(i, delta, m), delta, m)}"  # noqa: E501
-    #     )
+    # check: RoutedBehavior = RoutedBehavior(
+    #     delta=2,
+    #     m=2,
+    #     vector=check_vec.reshape(
+    #         32,
+    #     ),
+    # )
+    # # print(check)
+    # # print(check.get_vector())
+    # sum_over_a, sum_over_b = check.no_signaling(_debug=True)
+    # print("sum_over_a")
+    # print(sum_over_a)
     # print()
+    # print("sum_over_b")
+    # print(sum_over_b)
+    # print()
+
+    # print("\n\n------\n\n")
+
+    # check_latent_short: np.ndarray = np.array(
+    #     [
+    #         ["p0000S", "p0001S", "p0010S", "p0011S"],
+    #         ["p0100S", "p0101S", "p0110S", "p0111S"],
+    #         ["p1000S", "p1001S", "p1010S", "p1011S"],
+    #         ["p1100S", "p1101S", "p1110S", "p1111S"],
+    #     ]
+    # )
+    # check_latent_long: np.ndarray = np.array(
+    #     [
+    #         ["p0(00)0L", "p0(00)1L"],
+    #         ["p0(01)0L", "p0(01)1L"],
+    #         ["p0(10)0L", "p0(10)1L"],
+    #         ["p0(11)0L", "p0(11)1L"],
+    #         ["p1(00)0L", "p1(00)1L"],
+    #         ["p1(01)0L", "p1(01)1L"],
+    #         ["p1(10)0L", "p1(10)1L"],
+    #         ["p1(11)0L", "p1(11)1L"],
+    #     ],
+    #     dtype=object,
+    # )
+
+    # check_latent_vect: np.ndarray = np.concatenate(
+    #     (
+    #         check_latent_short.reshape(16),
+    #         check_latent_long.reshape(16),
+    #     ),
+    #     axis=0,
+    # )
+    # check_latent: LatentSRNSBehavior = LatentSRNSBehavior(
+    #     delta=2,
+    #     m=2,
+    #     vector=check_latent_vect,
+    # )
+    # # print(check_latent)
+    # # print(check_latent.get_vector())
+    # # print(check_latent.get_matrix_element((1, 1, (1, 0), 1)))
+    # sum_over_a_short, sum_over_a_long, sum_over_b = check_latent.no_signaling(_debug=True)
+    # print("sum_over_a_short (p(b|yS))")
+    # print(sum_over_a_short)
+    # print()
+    # print("sum_over_a_long (p(beta|L))")
+    # print(sum_over_a_long)
+    # print()
+    # print("sum_over_b (p(a|x))")
+    # print(sum_over_b)
+
+    # # delta = 2
+    # # m = 2
+
+    # # for i in range(LatentSRNSBehavior(delta, m).dim_q):
+    # #     print(
+    # #         f"Index {i} : {short_range_index_to_indices(i, delta, m)} --> {short_range_indices_to_index(short_range_index_to_indices(i, delta, m), delta, m)}"  # noqa: E501
+    # #     )
+    # # print()
