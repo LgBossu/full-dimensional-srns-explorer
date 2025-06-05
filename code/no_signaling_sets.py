@@ -51,11 +51,17 @@ class BehaviorSet(ABC):
         self.positivity = positivity  # Whether vectors of the set verify v >= 0
 
     @abstractmethod
-    def get_equations(self) -> tuple[np.ndarray, np.ndarray]:
+    def get_equations(self, measured_behavior=None) -> tuple[np.ndarray, np.ndarray]:
         """
         Get the equations defining the set. Equations formalism may vary depending on the set,
         as each is known differently and thus tests for membership may differ.
         """
+        # The measured_behavior is a placeholder for any additional vector
+        # that may be needed to define the equations, such as a measured behavior.
+        # It is used to ensure that the method signature is consistent
+        # across different implementations of the BehaviorSet class.
+        # Notably, we need it in the ShortRangeNoSignalingSet
+        # to compute the LP equations based on a measured behavior.
         pass
 
     def get_dimension(self, tolerance: float = 1e-10) -> int:
@@ -70,7 +76,7 @@ class BehaviorSet(ABC):
         # Count the number of singular values greater than the tolerance
         rank = np.sum(s > tolerance)
 
-        return rank
+        return int(rank)
 
     def get_reduced_equations(self, tolerance: float = 1e-10) -> tuple[np.ndarray, np.ndarray]:
         """
@@ -95,10 +101,15 @@ class NoSignalingSet(BehaviorSet):
 
         super().__init__(delta, m)
 
-    def get_equations(self) -> tuple[np.ndarray, np.ndarray]:
+    def get_equations(self, measured_behavior=None) -> tuple[np.ndarray, np.ndarray]:
         """
         Generate the no-signaling equations for the routed case.
         """
+        if measured_behavior is not None:
+            logger.warning(
+                "The measured_behavior parameter is not used in this method. It is a placeholder for compatibility with the BehaviorSet interface."  # noqa: E501
+            )
+
         # Initialize the equations
         equations = []
         right_side = []
@@ -271,7 +282,7 @@ class ShortRangeNoSignalingSet(BehaviorSet):
 
     def get_equations(
         self,
-        measured_behavior: behaviors.RoutedBehavior,
+        measured_behavior: behaviors.RoutedBehavior | None = None,
     ) -> tuple[np.ndarray, np.ndarray]:
         """
         Assuming a parameter vector of the form x = (alpha, q(ab|xy), q(a beta|x)),
@@ -286,6 +297,9 @@ class ShortRangeNoSignalingSet(BehaviorSet):
         and the other rows correspond to the second equation (no-signaling).
         """
         assert (
+            measured_behavior is not None
+        ), "Measured behavior must be provided and must have a vector representation initialized."
+        assert (
             self.delta == measured_behavior.delta
         ), "Declared delta does not match measured behavior delta"
         assert self.m == measured_behavior.m, "Declared m does not match measured behavior m"
@@ -296,9 +310,14 @@ class ShortRangeNoSignalingSet(BehaviorSet):
         n_last_rows = base_matrix.shape[0] - (2 * self.delta**2 * self.m**2)
         filler_vector = np.zeros(n_last_rows)
 
+        measured_behavior_vector = measured_behavior.get_vector()
+        assert measured_behavior_vector is not None, "Measured behavior vector must be initialized."
+
         first_A_column = np.vstack(
             (
-                (maximally_mixed_state - measured_behavior.get_vector()).reshape(-1, 1),
+                (maximally_mixed_state - measured_behavior_vector.astype(np.float64)).reshape(
+                    -1, 1
+                ),
                 filler_vector.reshape(-1, 1),
             )
         )
@@ -351,7 +370,7 @@ class ShortRangeNoSignalingSet(BehaviorSet):
         self,
         sample: behaviors.RoutedBehavior,
         tolerance: float = 1e-10,
-    ) -> tuple[bool, int, np.ndarray]:
+    ) -> tuple[bool, int, np.ndarray] | None:
         try:
             res = self.lp_test(sample)
         except ValueError as e:
@@ -388,7 +407,12 @@ class ShortRangeNoSignalingSet(BehaviorSet):
         self,
         sample: behaviors.RoutedBehavior,
     ) -> np.ndarray:
-        is_facet, rank, vec_lambda = self.is_facet_hyperplane(sample)
+        facet_return = self.is_facet_hyperplane(sample)
+        if facet_return is None:
+            logger.error("Linear programming test failed or returned None.")
+            raise ValueError("The linear programming test failed or returned None.")
+        # Unpack the result
+        is_facet, rank, vec_lambda = facet_return
 
         if not is_facet:
             # raise ValueError(
@@ -443,7 +467,7 @@ class LatentSRNSSet(BehaviorSet):
             delta=self.delta, m=self.m
         ).get_vector_shape()[0]
 
-    def get_equations(self) -> tuple[np.ndarray, np.ndarray]:
+    def get_equations(self, measured_behavior=None) -> tuple[np.ndarray, np.ndarray]:
         """
         Generate the equations defining the latent short-range
         no-signaling set in its full-dimensional space.
@@ -452,6 +476,10 @@ class LatentSRNSSet(BehaviorSet):
         characterizes the belonging of a vector x to the latent
         SRNS set.
         """
+        if measured_behavior is not None:
+            logger.warning(
+                "The measured_behavior parameter is not used in this method. It is a placeholder for compatibility with the BehaviorSet interface."  # noqa: E501
+            )
         # TODO : implement the full SRNS set equations
         raise NotImplementedError()
 

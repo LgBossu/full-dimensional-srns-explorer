@@ -141,7 +141,7 @@ class SamplesAnalyzer:
 
     def check_samples_are_no_signaling(
         self,
-        save_path: str = None,
+        save_path: str | None = None,
     ) -> bool:
         """
         Check that the samples are in the no-signaling set.
@@ -173,10 +173,10 @@ class SamplesAnalyzer:
 
     def plot_projection(
         self,
-        rng_seed: int = None,
-        save_path: str = None,
+        rng_seed: int | None = None,
+        save_path: str | None = None,
         plot: bool = True,
-        colors: list[bool] = None,
+        colors: list[bool] | None = None,
         alpha: float = 0.5,
     ):
         # Get the dimension of the samples
@@ -184,10 +184,10 @@ class SamplesAnalyzer:
 
         # Pick a random behavior from the samples
         if rng_seed is not None:
-            with np.random.seed(rng_seed):
-                ref_vector_idx = np.random.choice(self.samples.shape[0])
-                ref_vector = self.samples[ref_vector_idx]
-                indices = np.random.choice(range(d), 2, replace=False)
+            np.random.seed(rng_seed)
+            ref_vector_idx = np.random.choice(self.samples.shape[0])
+            ref_vector = self.samples[ref_vector_idx]
+            indices = np.random.choice(range(d), 2, replace=False)
         else:
             ref_vector_idx = np.random.choice(self.samples.shape[0])
             ref_vector = self.samples[ref_vector_idx]
@@ -213,9 +213,9 @@ class SamplesAnalyzer:
 
         # Scatter plot
         if colors is None:
-            colors = ["blue"] * len(self.samples)
+            colors = ["blue"] * len(self.samples)  # type: ignore
         else:
-            colors = ["yellow" if c else "blue" for c in colors]
+            colors = ["yellow" if c else "blue" for c in colors]  # type: ignore
         axs[0].scatter(
             projected_samples[:, 0],
             projected_samples[:, 1],
