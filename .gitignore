@@ -5,3 +5,4 @@ __pycache__/
 data/
 notebooks_legacy/
 *.ipynb_checkpoints
+docs/
