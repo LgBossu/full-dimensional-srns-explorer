@@ -418,6 +418,44 @@ class ShortRangeNoSignalingSet(BehaviorSet):
             return None
 
 
+class LatentSRNSSet(BehaviorSet):
+    """
+    Class to generate the complete description of the
+    short-range no-signaling polytope.
+    This class is a concrete implementation of the BehaviorSet
+    abstract class.
+    It does not provide belonging tests in the form of LP
+    solving, but rather generates the matrix representation :
+        A @ x <= b
+    of the SRNS set.
+    """  # TODO : amend when methods are implemented,
+
+    # to better reflect the class workings
+    def __init__(self, delta: int, m: int):
+        """
+        Initialize the full SRNS polytope.
+        """
+        super().__init__(delta, m)
+        self.routed_image_dim = behaviors.RoutedBehavior(
+            delta=self.delta, m=self.m
+        ).get_vector_shape()[0]
+        self.latent_space_dim = behaviors.LatentSRNSBehavior(
+            delta=self.delta, m=self.m
+        ).get_vector_shape()[0]
+
+    def get_equations(self) -> tuple[np.ndarray, np.ndarray]:
+        """
+        Generate the equations defining the latent short-range
+        no-signaling set in its full-dimensional space.
+        Returns the matrix A and the vector b such that:
+            A @ x = b
+        characterizes the belonging of a vector x to the latent
+        SRNS set.
+        """
+
+        raise NotImplementedError()
+
+
 def routed_no_signaling_equations(delta: int, m: int) -> tuple[np.ndarray, np.ndarray]:
     """
     Generate the no-signaling equations for the routed case.

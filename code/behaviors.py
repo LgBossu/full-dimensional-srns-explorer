@@ -594,7 +594,7 @@ pr_box = RoutedBehavior(
 
 
 if __name__ == "__main__":
-    check: np.ndarray = np.array(
+    check_vec: np.ndarray = np.array(
         [
             [
                 [
@@ -620,12 +620,12 @@ if __name__ == "__main__":
         dtype=object,
     )
 
-    check = check.reshape(2, 4, 4)
+    check_vec = check_vec.reshape(2, 4, 4)
 
     check: RoutedBehavior = RoutedBehavior(
         delta=2,
         m=2,
-        vector=check.reshape(
+        vector=check_vec.reshape(
             32,
         ),
     )
