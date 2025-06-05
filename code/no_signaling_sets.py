@@ -452,7 +452,7 @@ class LatentSRNSSet(BehaviorSet):
         characterizes the belonging of a vector x to the latent
         SRNS set.
         """
-
+        # TODO : implement the full SRNS set equations
         raise NotImplementedError()
 
 
