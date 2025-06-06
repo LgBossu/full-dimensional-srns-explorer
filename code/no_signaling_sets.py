@@ -630,17 +630,14 @@ class LatentSRNSSet(BehaviorSet):
         b = np.array(b_rows)
         return A, b
 
-    def get_cdd_matrix(self) -> np.ndarray:
+    def get_cdd_matrix(self) -> tuple[np.ndarray, list[int]]:
         """
         Get the CDD matrix representation of the latent SRNS set.
         This is a convenience method to convert the equations into a pycddlib formated matrix.
         """
-        A_left, b = self.get_equations()
-        q_dim = A_left.shape[1]
-        # CDD requires inequalities. A has to be duplicated
-        # to impose A@x <= b and A@x >= b for equalities.
-        A = np.vstack((A_left, -A_left))
-        b = np.hstack((b, -b))
+        A, b = self.get_equations()
+        q_dim = A.shape[1]
+        equality_indices = list(range(A.shape[0]))
 
         positivity_block = np.eye(q_dim)
         b_pos = np.zeros(q_dim)
@@ -651,7 +648,52 @@ class LatentSRNSSet(BehaviorSet):
 
         # Format in a single (b, A) matrix
         cdd_matrix = np.hstack((b.reshape(-1, 1), A))
-        return cdd_matrix
+        return cdd_matrix, equality_indices
+
+    def latent_to_measured(self) -> np.ndarray:
+        """
+        Returns the matrix M which, given a vector q of coordinates (q(ab|xy), q(a beta|x)),
+        will return the corresponding measured behavior p as:
+        p = f(q) = M @ q
+        s.t p(ab|xyz) = q(ab|xy) if z=S,
+        and p(ab|xyz) = sum_beta,beta_y=b q(a beta|x) if z=L.
+        """
+        # Dimension of the short-path q vector
+        dim_q_s = self.delta**2 * self.m**2
+        # Dimension of the long-path q vector
+        dim_q_L = self.m * self.delta ** (self.m + 1)
+        # Dimension of q
+        dim_q = dim_q_s + dim_q_L
+        # Dimension of p, the classical routed behavior dim
+        dim_p = 2 * self.delta**2 * self.m**2
+
+        # Initialize the matrix M
+        M = np.zeros((dim_p, dim_q))
+
+        # The first dim_q_s block enforces q_s = p(z=S)
+        M[:dim_q_s, :dim_q_s] = np.eye(dim_q_s)
+
+        # The second dim_q_L block enforces p(z=L) = sum_beta,beta_y=b q(a beta|x)
+        lacking_betas = [
+            list(np.base_repr(i, self.delta).rjust(self.m - 1, "0"))
+            for i in range(self.delta ** (self.m - 1))
+        ]
+        # The missing coordinate is the one to be inserted with 'beta_y=b'
+
+        for line_idx in range(dim_q_s, dim_p):
+            # We loop over all the lines of the second block,
+            # i.e. coordinates of p(z=L)
+            a, b, x, y, _ = behaviors.routed_index_to_indices(line_idx, delta=self.delta, m=self.m)
+
+            for beta in [tuple(l_beta[:y] + [b] + l_beta[y:]) for l_beta in lacking_betas]:
+                M[
+                    line_idx,
+                    behaviors.short_range_indices_to_index(
+                        (a, beta, x, 1), delta=self.delta, m=self.m
+                    ),
+                ] = 1
+
+        return M
 
 
 def routed_no_signaling_equations(delta: int, m: int) -> tuple[np.ndarray, np.ndarray]:
