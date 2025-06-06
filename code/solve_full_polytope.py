@@ -22,4 +22,19 @@ if __name__ == "__main__":
 
     h_latent_matrix = cdd.Matrix(latent_matrix_form, number_type="float")
 
-    print(h_latent_matrix)
+    latent_polytope = cdd.Polyhedron(h_latent_matrix)
+    v_matrix = latent_polytope.get_generators()
+
+    vertices = [list(v) for v in v_matrix]
+
+    print(f"Number of vertices in the latent set: {len(vertices)}")
+    print(f"vertex dimension: {len(vertices[0]) if vertices else 0}")
+
+    actual_vertices = np.array(vertices)
+    actual_vertices = actual_vertices[:, 1:]  # Remove the first column (the constant term)
+    # Remove duplicate rows from the array
+    actual_vertices = np.unique(actual_vertices, axis=0)
+    print(f"Number of unique vertices: {len(actual_vertices)}")
+
+    for v in actual_vertices[:10]:
+        print(v)
