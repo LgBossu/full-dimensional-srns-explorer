@@ -539,6 +539,10 @@ class LatentSRNSSet(BehaviorSet):
             for x in range(m):
                 for y in range(m):
                     for z in [0, 1]:
+                        if y == 0 and z == 0:
+                            # Skip the case where y=0 and z=0, as it is the reference
+                            # for the no-signaling constraint.
+                            continue
                         row = np.zeros(dim_q)
                         for b in range(delta):
                             # q_short(a, b, x, 0, 0)
@@ -582,6 +586,10 @@ class LatentSRNSSet(BehaviorSet):
         for b in range(delta):
             for y in range(m):
                 for x in range(m):
+                    if x == 0:
+                        # Skip the case where x=0, as it is the reference
+                        # for the no-signaling constraint.
+                        continue
                     row = np.zeros(dim_q)
                     for a in range(delta):
                         idx0 = behaviors.short_range_indices_to_index(
@@ -609,6 +617,10 @@ class LatentSRNSSet(BehaviorSet):
         ]
         for beta in values_of_beta:
             for x in range(1, m):
+                if x == 0:
+                    # Skip the case where x=0, as it is the reference
+                    # for the no-signaling constraint.
+                    continue
                 row = np.zeros(dim_q)
                 for a in range(delta):
                     # Using the helper function to get index from latent vector.
