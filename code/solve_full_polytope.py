@@ -16,17 +16,10 @@ if __name__ == "__main__":
     m = 2
 
     latent_set = no_signaling_sets.LatentSRNSSet(delta, m)
-    A, b = latent_set.get_equations()
 
-    max_mix_vector = behaviors.completely_mixed_behavior.get_vector()
-    with np.printoptions(threshold=np.inf, linewidth=np.inf):  # type: ignore
-        print("A:")
-        print(A)
-        print("b:")
-        print(b)
-        print("Maximally mixed vector:")
-        print(max_mix_vector)
-        print("A @ max_mix_vector:")
-        print(A @ max_mix_vector)
-        print("Equality check:")
-        print(A @ max_mix_vector == b)
+    # Get the H-representation of the latent set
+    latent_matrix_form = latent_set.get_cdd_matrix()
+
+    h_latent_matrix = cdd.Matrix(latent_matrix_form, number_type="float")
+
+    print(h_latent_matrix)

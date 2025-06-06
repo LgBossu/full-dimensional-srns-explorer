@@ -58,6 +58,6 @@ def extract_full_docs(module_name, output_file="module_docs.txt", max_depth=2):
 
 # Example usage:
 if __name__ == "__main__":
-    name = "qutip"
+    name = "cdd"
     extension = ".txt"
     extract_full_docs(name, output_file=f"{name}_doc{extension}", max_depth=5)

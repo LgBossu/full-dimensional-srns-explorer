@@ -458,7 +458,12 @@ class LatentSRNSSet(BehaviorSet):
         """
         Initialize the full SRNS polytope.
         """
-        super().__init__(delta, m)
+        super().__init__(
+            delta,
+            m,
+            routed=True,
+            positivity=True,
+        )
         self.routed_image_dim = behaviors.RoutedBehavior(
             delta=self.delta, m=self.m
         ).get_vector_shape()[0]
@@ -624,6 +629,29 @@ class LatentSRNSSet(BehaviorSet):
         A = np.array(eq_rows)
         b = np.array(b_rows)
         return A, b
+
+    def get_cdd_matrix(self) -> np.ndarray:
+        """
+        Get the CDD matrix representation of the latent SRNS set.
+        This is a convenience method to convert the equations into a pycddlib formated matrix.
+        """
+        A_left, b = self.get_equations()
+        q_dim = A_left.shape[1]
+        # CDD requires inequalities. A has to be duplicated
+        # to impose A@x <= b and A@x >= b for equalities.
+        A = np.vstack((A_left, -A_left))
+        b = np.hstack((b, -b))
+
+        positivity_block = np.eye(q_dim)
+        b_pos = np.zeros(q_dim)
+
+        # Enforce positivity constraints: x >= 0
+        A = np.vstack((A, positivity_block))
+        b = np.hstack((b, b_pos))
+
+        # Format in a single (b, A) matrix
+        cdd_matrix = np.hstack((b.reshape(-1, 1), A))
+        return cdd_matrix
 
 
 def routed_no_signaling_equations(delta: int, m: int) -> tuple[np.ndarray, np.ndarray]:
