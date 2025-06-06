@@ -450,11 +450,10 @@ class LatentSRNSSet(BehaviorSet):
     abstract class.
     It does not provide belonging tests in the form of LP
     solving, but rather generates the matrix representation :
-        A @ x <= b
-    of the SRNS set.
-    """  # TODO : amend when methods are implemented,
+        A @ x = b
+    of the latent SRNS set.
+    """
 
-    # to better reflect the class workings
     def __init__(self, delta: int, m: int):
         """
         Initialize the full SRNS polytope.
@@ -473,15 +472,156 @@ class LatentSRNSSet(BehaviorSet):
         no-signaling set in its full-dimensional space.
         Returns the matrix A and the vector b such that:
             A @ x = b
-        characterizes the belonging of a vector x to the latent
-        SRNS set.
+        characterizes the belonging of a latent behavior vector x.
+
+        The set of equations comprises three blocks:
+         1. Normalization for q_short: For each column of the short-path block,
+            ∑ₐ₍short₎ q = 1.
+         2. Normalization for q_long: For each column of the long-path block,
+            ∑ₐ₍long₎ q = 1.
+         3. β no-signaling constraints on q_long: for every β (represented as a tuple
+            of m digits in base delta) and for every x∈{1,…,m-1},
+            ∑ₐ q_long(a, β, 0, 1) = ∑ₐ q_long(a, β, x, 1)
         """
         if measured_behavior is not None:
             logger.warning(
-                "The measured_behavior parameter is not used in this method. It is a placeholder for compatibility with the BehaviorSet interface."  # noqa: E501
+                "The measured_behavior parameter is not used in LatentSRNSSet.get_equations()."
             )
-        # TODO : implement the full SRNS set equations
-        raise NotImplementedError()
+
+        # AI GENERATED CODE
+
+        delta = self.delta
+        m = self.m
+
+        # Dimensions of latent components
+        dim_q_s = delta**2 * m**2
+        dim_q_L = m * (delta ** (m + 1))
+        dim_q = dim_q_s + dim_q_L
+
+        eq_rows = []
+        b_rows = []
+
+        # Block 1: Normalization for q_short.
+        # Reshape q_short as (delta², m²): for every column, sum = 1.
+        for col in range(m**2):
+            row = np.zeros(dim_q)
+            for row_idx in range(delta**2):
+                # q_short is stored in the first dim_q_s entries in row-major order.
+                idx = row_idx * (m**2) + col
+                row[idx] = 1
+            eq_rows.append(row)
+            b_rows.append(1)
+
+        # Block 2: Normalization for q_long.
+        # q_long is stored in the remaining entries and is a matrix of shape (delta^(m+1), m)
+        for col in range(m):
+            row = np.zeros(dim_q)
+            # For each row index in q_long (row-major order)
+            for row_idx in range(delta ** (m + 1)):
+                # Compute the index in the latent vector (offset by dim_q_s).
+                idx = dim_q_s + row_idx * m + col
+                row[idx] = 1
+            eq_rows.append(row)
+            b_rows.append(1)
+
+        # Block 3: a no-signaling constraints
+        # For every a, x, for y = 0,..., m-1, and z = 0,1,
+        # enforce:
+        #    sum_b [q_short(a, b, x, 0, 0) - q_short(a, b, x, y, z)] = 0
+        #    sum_b [q_short(a, b, x, 0, 0)] - sum_beta [q_long(a, beta, x, 1)] = 0
+        # Meaning both y AND z are no-signaling towards Alice.
+
+        # First, sum_b [q_short(a, b, x, 0, 0) - q_short(a, b, x, y, z)] = 0
+        for a in range(delta):
+            for x in range(m):
+                for y in range(m):
+                    for z in [0, 1]:
+                        row = np.zeros(dim_q)
+                        for b in range(delta):
+                            # q_short(a, b, x, 0, 0)
+                            idx_ref = behaviors.short_range_indices_to_index(
+                                (a, b, x, 0, 0), delta=delta, m=m
+                            )
+                            # q_short(a, b, x, y, z)
+                            idx_yz = behaviors.short_range_indices_to_index(
+                                (a, b, x, y, z), delta=delta, m=m
+                            )
+                            row[idx_ref] += 1
+                            row[idx_yz] -= 1
+                        eq_rows.append(row)
+                        b_rows.append(0)
+
+        # Second, sum_b [q_short(a, b, x, 0, 0)] - sum_beta [q_long(a, beta, x, 1)] = 0
+        # For each a, x
+        for a in range(delta):
+            for x in range(m):
+                row = np.zeros(dim_q)
+                # sum_b [q_short(a, b, x, 0, 0)]
+                for b in range(delta):
+                    idx_short = behaviors.short_range_indices_to_index(
+                        (a, b, x, 0, 0), delta=delta, m=m
+                    )
+                    row[idx_short] += 1
+                # sum_beta [q_long(a, beta, x, 1)]
+                # beta is a tuple of length m
+                for i in range(delta**m):
+                    beta = tuple(int(d) for d in np.base_repr(i, base=delta).rjust(m, "0"))
+                    idx_long = behaviors.short_range_indices_to_index(
+                        (a, beta, x, 1), delta=delta, m=m
+                    )
+                    row[idx_long] -= 1
+                eq_rows.append(row)
+                b_rows.append(0)
+
+        # Block 4: b no-signaling constraints on the q_short block
+        # For every b, y, for x = 0,..., m-1,
+        # enforce: sumₐ [q_short(a, b, 0, y, 0) - q_short(a, b, x, y, 0)] = 0.
+        for b in range(delta):
+            for y in range(m):
+                for x in range(m):
+                    row = np.zeros(dim_q)
+                    for a in range(delta):
+                        idx0 = behaviors.short_range_indices_to_index(
+                            (a, b, 0, y, 0),
+                            delta=delta,
+                            m=m,
+                        )
+                        idxx = behaviors.short_range_indices_to_index(
+                            (a, b, x, y, 0),
+                            delta=delta,
+                            m=m,
+                        )
+                        row[idx0] += 1
+                        row[idxx] -= 1
+                        eq_rows.append(row)
+                        b_rows.append(0)
+
+        # Block 5: β no-signaling constraints on the q_long block
+        # For every β, for x = 1,..., m-1,
+        # enforce: sumₐ [q_long(a, β, 0, 1) - q_long(a, β, x, 1)] = 0.
+        # We loop over all β as tuples of m digits in base delta.
+        values_of_beta = [
+            tuple(int(d) for d in np.base_repr(i, base=delta).rjust(m, "0"))
+            for i in range(delta**m)
+        ]
+        for beta in values_of_beta:
+            for x in range(1, m):
+                row = np.zeros(dim_q)
+                for a in range(delta):
+                    # Using the helper function to get index from latent vector.
+                    # Note: short_range_indices_to_index returns the full index in
+                    # the latent vector,
+                    # with z set to 1 for the long-path block.
+                    idx0 = behaviors.short_range_indices_to_index((a, beta, 0, 1), delta=delta, m=m)
+                    idxx = behaviors.short_range_indices_to_index((a, beta, x, 1), delta=delta, m=m)
+                    row[idx0] = 1
+                    row[idxx] = -1
+                eq_rows.append(row)
+                b_rows.append(0)
+
+        A = np.array(eq_rows)
+        b = np.array(b_rows)
+        return A, b
 
 
 def routed_no_signaling_equations(delta: int, m: int) -> tuple[np.ndarray, np.ndarray]:
