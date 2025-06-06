@@ -537,26 +537,21 @@ class LatentSRNSSet(BehaviorSet):
         # First, sum_b [q_short(a, b, x, 0, 0) - q_short(a, b, x, y, z)] = 0
         for a in range(delta):
             for x in range(m):
-                for y in range(m):
-                    for z in [0, 1]:
-                        if y == 0 and z == 0:
-                            # Skip the case where y=0 and z=0, as it is the reference
-                            # for the no-signaling constraint.
-                            continue
-                        row = np.zeros(dim_q)
-                        for b in range(delta):
-                            # q_short(a, b, x, 0, 0)
-                            idx_ref = behaviors.short_range_indices_to_index(
-                                (a, b, x, 0, 0), delta=delta, m=m
-                            )
-                            # q_short(a, b, x, y, z)
-                            idx_yz = behaviors.short_range_indices_to_index(
-                                (a, b, x, y, z), delta=delta, m=m
-                            )
-                            row[idx_ref] += 1
-                            row[idx_yz] -= 1
-                        eq_rows.append(row)
-                        b_rows.append(0)
+                for y in range(1, m):  # z=0
+                    row = np.zeros(dim_q)
+                    for b in range(delta):
+                        # q_short(a, b, x, 0, 0)
+                        idx_ref = behaviors.short_range_indices_to_index(
+                            (a, b, x, 0, 0), delta=delta, m=m
+                        )
+                        # q_short(a, b, x, y, 0)
+                        idx_yz = behaviors.short_range_indices_to_index(
+                            (a, b, x, y, 0), delta=delta, m=m
+                        )
+                        row[idx_ref] += 1
+                        row[idx_yz] -= 1
+                    eq_rows.append(row)
+                    b_rows.append(0)
 
         # Second, sum_b [q_short(a, b, x, 0, 0)] - sum_beta [q_long(a, beta, x, 1)] = 0
         # For each a, x
@@ -585,11 +580,7 @@ class LatentSRNSSet(BehaviorSet):
         # enforce: sumₐ [q_short(a, b, 0, y, 0) - q_short(a, b, x, y, 0)] = 0.
         for b in range(delta):
             for y in range(m):
-                for x in range(m):
-                    if x == 0:
-                        # Skip the case where x=0, as it is the reference
-                        # for the no-signaling constraint.
-                        continue
+                for x in range(1, m):
                     row = np.zeros(dim_q)
                     for a in range(delta):
                         idx0 = behaviors.short_range_indices_to_index(
@@ -617,10 +608,6 @@ class LatentSRNSSet(BehaviorSet):
         ]
         for beta in values_of_beta:
             for x in range(1, m):
-                if x == 0:
-                    # Skip the case where x=0, as it is the reference
-                    # for the no-signaling constraint.
-                    continue
                 row = np.zeros(dim_q)
                 for a in range(delta):
                     # Using the helper function to get index from latent vector.
