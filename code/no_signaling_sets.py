@@ -483,6 +483,9 @@ class LatentSRNSSet(BehaviorSet):
             of m digits in base delta) and for every x∈{1,…,m-1},
             ∑ₐ q_long(a, β, 0, 1) = ∑ₐ q_long(a, β, x, 1)
         """
+
+        # TODO : check if and how to account for the positivity constraint.
+
         if measured_behavior is not None:
             logger.warning(
                 "The measured_behavior parameter is not used in LatentSRNSSet.get_equations()."
