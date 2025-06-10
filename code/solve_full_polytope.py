@@ -6,13 +6,29 @@ projects the vertices onto the experiment space, and then
 computes the hyperplane representation of the resulting polytope.
 """
 
-if __name__ == "__main__":
-    # Import necessary libraries
-    import cdd
-    import no_signaling_sets
-    import numpy as np
-    from loguru import logger
+# Import necessary libraries
+import cdd
+import no_signaling_sets
+import numpy as np
+from loguru import logger
+from tqdm import tqdm
 
+
+def contains(h_matrix, vector):
+    belongs = True
+    for i, inequality in enumerate(h_matrix):
+        if i in h_matrix.lin_set:
+            if abs(np.dot(inequality[1:], vector) - inequality[0]) > 1e-10:
+                belongs = False
+                break
+        else:
+            if inequality[0] + np.dot(inequality[1:], vector) < 0:
+                belongs = False
+                break
+    return belongs
+
+
+if __name__ == "__main__":
     # Dimensions and parameters
     delta = 2
     m = 2
@@ -134,6 +150,28 @@ if __name__ == "__main__":
     belongings = np.load(f"data/view_srns/belonging_list_{check_files_suffix}.npy")
     # A boolean list indicating if the sampled behaviors belong to the measured polytope
     logger.info("Checking if the sampled behaviors belong to the measured polytope...")
+
+    belongings = belongings[:, 1].astype(
+        bool
+    )  # Convert to boolean, ignore the first column (index)
+
+    inferred_belongings = []
+    for i, test_vector in enumerate(tqdm(samples)):
+        # Check if the test vector is in the measured polytope
+        belongs = contains(measured_h_matrix, test_vector)
+        inferred_belongings.append(belongs)
+
+    inferred_belongings = np.array(inferred_belongings, dtype=bool)
+
+    # Compute the difference percentage between the inferred belongings and the original belongings
+    difference_percentage = np.mean(inferred_belongings != belongings) * 100
+    if difference_percentage > 0:
+        logger.warning(
+            f"Some sampled behaviors do not match the measured polytope's representation! "
+            f"Difference percentage: {difference_percentage:.2f}%"
+        )
+    else:
+        logger.success("All sampled behaviors match the measured polytope's representation!")
 
     # HINT : our inferred belongings boolean list should match the belonging list
 
