@@ -660,10 +660,12 @@ def short_range_indices_to_index(indices: tuple, delta: int = 2, m: int = 2) -> 
     """
     if len(indices) == 5:
         # Short path
+        assert indices[-1] == 0, "Expected z to be 0 for short path."
         a, b, x, y, z = indices
         return (z * (delta**2 * m**2)) + (a * (delta * m**2)) + (b * (m**2)) + (x * m) + y
     else:
         # Long path
+        assert indices[-1] == 1, "Expected z to be 1 for long path."
         a, beta, x, z = indices
         beta = int("".join([str(b) for b in beta]), delta)
         return (z * (delta**2 * m**2)) + (a * (delta * m**2)) + (beta * m) + x
