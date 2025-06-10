@@ -35,6 +35,41 @@ class QuotientInequalities:
         assert all(isinstance(i, int) for i in lin_set), "Linear set must contain integers."
         self.lin_set = lin_set
 
+    def check_compatible_dimension_self(self) -> None:
+        """
+        Check if the dimension of the inequalities matches the expected dimension.
+
+        Certain methods in this class require the inequalities to have a specific
+        dimension. This check ensures that no errors occur later in the code due
+        to dimension mismatches.
+        """
+        expected_dim = 2 * self.delta**2 * self.m**2 + 1
+        if self.ineq.shape[1] != expected_dim:
+            raise ValueError(
+                f"Expected inequalities to have dimension {expected_dim}, "
+                f"but got {self.ineq.shape[1]}."
+            )
+
+    def check_compatible_dimension(
+        self,
+        equation: np.ndarray,
+    ) -> None:
+        """
+        Check if the dimension of the given equation matches the expected dimension.
+
+        Like `check_compatible_dimension_self`, this method ensures that the
+        equation has the correct dimension before proceeding with further
+        operations.
+        Notably, when reshaping equations for permutations and the like, this
+        check is crucial to avoid errors due to dimension mismatches.
+        """
+        expected_dim = 2 * self.delta**2 * self.m**2
+        n_coordinates = len(equation.flatten())
+        if (n_coordinates) != expected_dim:
+            raise ValueError(
+                f"Expected equation to have dimension {expected_dim}, " f"but got {n_coordinates}."
+            )
+
     # # SIGN CONSISTENCY
     # def canonicalize(eq: np.ndarray) -> np.ndarray:
     #     """
@@ -56,50 +91,37 @@ class QuotientInequalities:
     #     return flat
 
     # # FORMATTING FOR PERMUTATIONS
-    # def format_hyperplane(
-    #     self,
-    #     equation: np.ndarray,
-    # ) -> tuple[np.ndarray]:
-    #     # TODO : ensure the function is applied to canonicalized hyperplanes.
+    def prepare_equation(
+        self,
+        equation: np.ndarray,
+    ) -> np.ndarray:
+        """
+        Format an equation to be used in permutations.
 
-    #     el_S, el_L, el_NS = (
-    #         equation[0 : self.delta**2 * self.m**2],
-    #         equation[self.delta**2 * self.m**2 : 2 * self.delta**2 * self.m**2],
-    #         equation[2 * self.delta**2 * self.m**2 :],
-    #     )
-    #     el_S = el_S.reshape((self.delta, self.delta, self.m, self.m))
-    #     el_L = el_L.reshape((self.delta, self.delta, self.m, self.m))
-    #     el_NS = el_NS.reshape((self.delta,) * self.m)
-    #     return (el_S, el_L, el_NS)
+        Checks if the equation has the correct dimension beforehand,
+        and if no errors are raised, returns the equation
+        reshaped in the expected format to facilitate coordinates permutations.
+        """
+        self.check_compatible_dimension(equation)
 
-    # def format_list_of_hyperplanes(
-    #     self,
-    #     equations: list[list[np.ndarray]],
-    # ) -> list[tuple[np.ndarray]]:
-    #     formatted: list[tuple[np.ndarray]] = []
-    #     for el in equations:
-    #         formatted.append(self.format_hyperplane(el))
+        reformatted_equation = equation.reshape((2, self.delta, self.delta, self.m, self.m))
 
-    #     return formatted
+        return reformatted_equation
 
-    # def flatten_hyperplane(
-    #     self,
-    #     hyperplane: tuple[np.ndarray, np.ndarray, np.ndarray],
-    # ) -> np.ndarray:
-    #     el_S, el_L, el_NS = hyperplane
+    def flatten_equation(
+        self,
+        equation: np.ndarray,
+    ) -> np.ndarray:
+        """
+        Flatten an equation to a 1D numpy array.
 
-    #     equation = np.concatenate((el_S.flatten(), el_L.flatten(), el_NS.flatten()))
+        This is the inverse operation of `prepare_equation`.
+        """
+        self.check_compatible_dimension(equation)
 
-    #     return equation
+        flattened_equation = equation.flatten()
 
-    # def flatten_list_of_hyperplanes(
-    #     self,
-    #     hyperplanes: list[tuple[np.ndarray, np.ndarray, np.ndarray]],
-    # ) -> np.ndarray:
-    #     flattened = []
-    #     for hyperplane in hyperplanes:
-    #         flattened.append(self.flatten_hyperplane(hyperplane))
-    #     return np.array(flattened, dtype=int)
+        return flattened_equation
 
     # PERMUTATIONS
     def permute_a(
@@ -109,8 +131,13 @@ class QuotientInequalities:
         """Apply to an equation the permutation of coordinates
         corresponding to relabelings of a values."""
         permuted_equations = []
+        permutable = self.prepare_equation(equation)
 
-        pass  # TODO
+        for perm in permutations(range(self.delta)):
+            permuted_equations.append(permutable[:, list(perm), :, :, :])
+
+        # Flatten the permuted equations back to the original shape
+        permuted_equations = [self.flatten_equation(eq) for eq in permuted_equations]
 
         return permuted_equations
 
@@ -121,8 +148,13 @@ class QuotientInequalities:
         """Apply to an equation the permutation of coordinates
         corresponding to relabelings of b values."""
         permuted_equations = []
+        permutable = self.prepare_equation(equation)
 
-        pass  # TODO
+        for perm in permutations(range(self.delta)):
+            permuted_equations.append(permutable[:, :, list(perm), :, :])
+
+        # Flatten the permuted equations back to the original shape
+        permuted_equations = [self.flatten_equation(eq) for eq in permuted_equations]
 
         return permuted_equations
 
@@ -133,8 +165,13 @@ class QuotientInequalities:
         """Apply to an equation the permutation of coordinates
         corresponding to relabelings of x values."""
         permuted_equations = []
+        permutable = self.prepare_equation(equation)
 
-        pass  # TODO
+        for perm in permutations(range(self.delta)):
+            permuted_equations.append(permutable[:, :, :, list(perm), :])
+
+        # Flatten the permuted equations back to the original shape
+        permuted_equations = [self.flatten_equation(eq) for eq in permuted_equations]
 
         return permuted_equations
 
@@ -145,8 +182,13 @@ class QuotientInequalities:
         """Apply to an equation the permutation of coordinates
         corresponding to relabelings of y values."""
         permuted_equations = []
+        permutable = self.prepare_equation(equation)
 
-        pass  # TODO
+        for perm in permutations(range(self.delta)):
+            permuted_equations.append(permutable[:, :, :, :, list(perm)])
+
+        # Flatten the permuted equations back to the original shape
+        permuted_equations = [self.flatten_equation(eq) for eq in permuted_equations]
 
         return permuted_equations
 
