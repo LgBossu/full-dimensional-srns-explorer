@@ -644,7 +644,7 @@ class LatentSRNSSet(BehaviorSet):
 
         # Enforce positivity constraints: x >= 0
         A = np.vstack((A, positivity_block))
-        b = np.hstack((b, b_pos))
+        b = np.hstack((-b, b_pos))
 
         # Format in a single (b, A) matrix
         cdd_matrix = np.hstack((b.reshape(-1, 1), A))
