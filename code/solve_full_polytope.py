@@ -41,6 +41,39 @@ files_headers = {
 class OutputFormatter:
     """
     A class to handle solver output formatting and writing to files.
+
+    This class provides methods to format and write solver outputs in both plain
+    text and CSV formats.
+    It supports different output types and manages file naming conventions,
+    including optional file identifiers.
+
+    Args:
+        output_dir (Path, optional): The directory where output files will be
+        saved. Defaults to Path("output/").
+        files_id (str, optional): An optional identifier to append to output
+        filenames. Defaults to "".
+
+    Methods:
+        _get_plain_text_path(output_type: OutputTypes) -> Path:
+            Get the output file path for plain text format based on the output
+            type and files_id.
+
+        _get_csv_path(output_type: OutputTypes) -> list[Path]:
+            Get the output file path(s) for CSV format based on the output type
+            and files_id.
+            For MEASURED_H_REPRESENTATION, returns separate paths for equalities
+            and inequalities.
+
+        write_plain_text(
+            Write the content to the specified output file in plain text format.
+            For MEASURED_H_REPRESENTATION, requires lin_set to distinguish
+            equalities.
+
+        write_csv(
+            Write the content to the specified output file(s) in CSV format.
+            For MEASURED_H_REPRESENTATION, splits content into equalities and
+            inequalities using lin_set.
+            CSV files include a header line that should be pruned upon reading.
     """
 
     def __init__(self, output_dir: Path = Path("output/"), files_id: str = "") -> None:
@@ -194,6 +227,45 @@ vertex_outputs = {
 class PolytopeWrapper:
     """
     A wrapper class for cdd.Polyhedron to handle polytope operations.
+
+    This class provides a convenient interface for creating, manipulating,
+    and querying polytopes using the pycddlib library. It supports both
+    H-representation (inequalities) and V-representation (generators),
+    and provides methods for projection, containment checks, and exporting
+    polytope data.
+    Args:
+        source_array (np.ndarray): The array representing the polytope, either as
+        inequalities or generators.
+        rep_type (RepTypes): The representation type (INEQUALITY or GENERATOR).
+        lin_set (set[int] | None): Indices of linear constraints (for INEQUALITY
+        representation).
+    Methods:
+        get_generators() -> np.ndarray:
+            Get the generators (vertices and rays) of the polytope as a numpy
+            array.
+        get_inequalities() -> tuple[np.ndarray, set[int]]:
+            Get the inequalities (H-representation) of the polytope and its linear
+            set.
+        write_vertices(polytope_type: PolytopeTypes, output_dir: Path = Path
+        ("output/"), file_id: str = "") -> None:
+        write_inequalities(polytope_type: PolytopeTypes, output_dir: Path = Path
+        ("output/"), file_id: str = "") -> None:
+        contains(vector: np.ndarray, tol: float = 1e-10) -> bool:
+            Check if a single vector belongs to the polytope within a given
+            tolerance.
+        contains_all(vectors: np.ndarray, tol: float = 1e-10) -> np.ndarray:
+            Check if all vectors in a list belong to the polytope. Returns a
+            boolean array.
+        project_single(vector: np.ndarray, projection_matrix: np.ndarray) -> np.
+        ndarray:
+        project_vertices(projection_matrix: np.ndarray) -> np.ndarray:
+            Project all vertices of the polytope onto a new space defined by the
+            projection matrix.
+        project_and_wrap(projection_matrix: np.ndarray) -> "PolytopeWrapper":
+            Project the polytope's vertices and return a new PolytopeWrapper
+            instance with the projected polytope.
+        is_bounded() -> bool:
+            Check if the polytope is bounded (i.e., has no rays).
     """
 
     def __init__(
@@ -430,6 +502,40 @@ class PolytopeSolver:
     A class to handle the polytope solving process.
     It wraps the cdd.Polyhedron and provides methods for vertex enumeration,
     projection, and representation writing.
+
+    This class wraps the cdd.Polyhedron and provides methods for vertex
+    enumeration,
+    projection, and representation writing for polytopes arising from no-signaling
+    sets.
+    Args:
+        delta (int): The number of settings or outcomes parameterizing the latent
+        set.
+        m (int): The number of measurements or parties parameterizing the latent
+        set.
+        output_dir (Path, optional): Directory where output files will be written.
+        Defaults to Path("output/").
+        solver_id (str, optional): Optional identifier for the solver instance.
+        Defaults to "".
+    Attributes:
+        delta (int): The number of settings or outcomes.
+        m (int): The number of measurements or parties.
+        latent_set (LatentSRNSSet): The latent no-signaling set object.
+        projection_matrix (np.ndarray): Matrix used to project latent space to
+        measured space.
+        latent_polytope (PolytopeWrapper | None): The polytope in the latent space.
+        measured_polytope (PolytopeWrapper | None): The polytope in the measured
+        (experiment) space.
+    Methods:
+        compute_latent_polytope():
+        compute_measured_polytope():
+        write_experiment_data():
+            Write the latent and measured polytope data (vertices and inequalities)
+            to files in the output directory.
+        solve():
+            Solve the polytope problem by computing the latent and measured
+            polytopes,
+            writing the results to files, and logging the process.
+
     """
 
     def __init__(
