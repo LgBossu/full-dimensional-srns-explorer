@@ -316,7 +316,7 @@ class PolytopeWrapper:
         Get the inequalities of the polytope as a np.ndarray with its linear set.
         """
         ineq_matrix = self.polyhedron.get_inequalities()
-        lin_set = self.cdd_matrix.lin_set
+        lin_set = ineq_matrix.lin_set
         ineqs = np.array([ineq for ineq in ineq_matrix])
 
         return ineqs, lin_set
@@ -356,10 +356,13 @@ class PolytopeWrapper:
             files_id=file_id,
         )
         ineqs, lin_set = self.get_inequalities()
+
+        # Check if the polytope type is implemented
         if polytope_type == PolytopeTypes.LATENT:
             raise NotImplementedError(
                 "Writing inequalities for the latent polytope is not implemented yet (no practical use for now)."  # noqa: E501
             )
+
         output_type = OutputTypes.MEASURED_H_REPRESENTATION
         output_formatter.write_plain_text(
             output_type,
@@ -628,6 +631,7 @@ class PolytopeSolver:
         logger.info(f"Measured polytope computed ({time() - start_time:.2f}s).")
 
         self.write_experiment_data()
+
         assert (
             self.latent_polytope is not None
         ), "Latent polytope is not initialized. This error should not happen at this point."  # noqa: E501
