@@ -142,7 +142,6 @@ if __name__ == "__main__":
             f.write(" ".join(map(str, h)) + "\n")
     logger.info(f"Number of inequalities in the measured set: {len(measured_h_matrix)}")
 
-    # TODO : sanity check, do our SRNS measured behaviors match the representation?
     check_files_suffix = "delta_2_m_2_samples_2000000_runtime_1747736589.6014528"
     samples = np.load(
         f"data/view_srns/sampled_behaviors_{check_files_suffix}.npy"
