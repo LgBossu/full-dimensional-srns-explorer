@@ -68,18 +68,18 @@ if __name__ == "__main__":
     # Get the projection matrix, which maps vertices from the latent space to the measured space
     # The matrix does NOT account for Y coordinates, we must add a column of zeros
     projection_matrix = latent_set.latent_to_measured()
-    projection_matrix = np.hstack(
-        (
-            projection_matrix,
-            np.zeros((projection_matrix.shape[0], 1)),
-        )  # TODO, checck if the zeros are in the right place
-    )
+    projected_generators = []
 
-    # TODO : keep the Y coordinates somewhere to generate the projection matrix properly
+    for row in v_matrix:  # v_matrix from get_generators()
+        tag = row[0]  # 0 or 1
+        vec = np.array(row[1:], dtype=float)  # The actual latent vector
 
-    # Project the vertices using the projection matrix
-    measured_vertices = np.dot(np.array(vertices), projection_matrix.T)
-    # TODO : check if the projection formula is correct...
+        projected_vec = projection_matrix @ vec  # shape (d_measured,)
+        new_row = [tag] + projected_vec.tolist()
+
+        projected_generators.append(new_row)
+
+    measured_vertices = np.array(projected_generators, dtype=float)
 
     # Set up the measured polytope with the projected generators
     logger.info("Setting up the measured polytope...")
