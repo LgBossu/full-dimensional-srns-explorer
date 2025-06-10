@@ -14,17 +14,19 @@ from loguru import logger
 from tqdm import tqdm
 
 
-def contains(h_matrix, vector):
+def contains(h_matrix, vector, tol=1e-10):
     belongs = True
     for i, inequality in enumerate(h_matrix):
-        if i in h_matrix.lin_set:
-            if abs(np.dot(inequality[1:], vector) - inequality[0]) > 1e-10:
-                belongs = False
-                break
-        else:
-            if inequality[0] + np.dot(inequality[1:], vector) < 0:
-                belongs = False
-                break
+        dot_result = np.dot(inequality[1:], vector) + inequality[0]
+
+        if i in h_matrix.lin_set and not abs(dot_result) < tol:
+            # If the inequality is linear and the dot product is not close to zero, it does not belong
+            belongs = False
+            break
+        elif i not in h_matrix.lin_set and dot_result < -tol:
+            # If the inequality is nonlinear and the dot product is negative, it does not belong
+            belongs = False
+            break
     return belongs
 
 
@@ -32,6 +34,7 @@ if __name__ == "__main__":
     # Dimensions and parameters
     delta = 2
     m = 2
+    limit_testing = None
 
     # Output results to a file
     latent_output_file = "output/latent_polytope_vertices.txt"
@@ -52,9 +55,6 @@ if __name__ == "__main__":
     lin_set = set(lin_list)
     h_latent_matrix.lin_set = lin_set  # Label the equations as such, using the linear set
     h_latent_matrix.rep_type = cdd.RepType.INEQUALITY  # Set the representation type to inequality
-
-    # # Reduce dimension
-    # logger.warning(h_latent_matrix.canonicalize())
 
     # Compute the double description of the latent set's polytope
     logger.info(f"Computing the latent SRNS set's polytope with {len(lin_set)} linear constraints.")
@@ -155,6 +155,10 @@ if __name__ == "__main__":
         bool
     )  # Convert to boolean, ignore the first column (index)
 
+    samples = samples[:limit_testing]
+    belongings = belongings[:limit_testing]
+    # limit the number of samples for testing purposes
+
     inferred_belongings = []
     for i, test_vector in enumerate(tqdm(samples)):
         # Check if the test vector is in the measured polytope
@@ -177,3 +181,6 @@ if __name__ == "__main__":
 
     logger.info("Done computing the polytope representations.")
     logger.info("You can now use the output files for further analysis.")
+
+    # TODO : refactor the script in proper classes and functions
+    # TODO : add more comments and docstrings
