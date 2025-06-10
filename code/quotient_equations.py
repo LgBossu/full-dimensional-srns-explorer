@@ -4,7 +4,160 @@ import numpy as np
 from loguru import logger
 
 
-class QuotientInequalities:
+class Equation:
+    """
+    This class acts as an immutable wrapper around a numpy array,
+    providing a structured way to handle equations with multiple coefficients.
+    """
+
+    def __init__(self, coefficients: np.ndarray) -> None:
+        """
+        Initialize an Equation object with the given coefficients.
+
+        :param coefficients: A numpy array representing the coefficients of the equation.
+        """
+        if not isinstance(coefficients, np.ndarray) or coefficients.ndim != 1:
+            raise TypeError("Coefficients must be a 1D numpy array.")
+        if not np.issubdtype(coefficients.dtype, np.number):
+            raise TypeError("Coefficients array must have a numeric dtype.")
+        if not coefficients.flags["WRITEABLE"]:
+            pass  # Already immutable
+        else:
+            coefficients.setflags(write=False)
+        self._coefficients = coefficients
+        self._shape = self._coefficients.shape
+        self._ndim = self._coefficients.ndim
+
+    def __repr__(self) -> str:
+        return f"Equation(coefficients={self._coefficients})"
+
+    # Getters for private attributes
+    @property
+    def coefficients(self) -> np.ndarray:
+        """
+        Get the coefficients of the equation.
+
+        :return: The coefficients as a numpy array.
+        """
+        return self._coefficients.copy()
+
+    @property
+    def shape(self) -> tuple[int, ...]:
+        """
+        Get the shape of the coefficients of the equation.
+
+        :return: The shape of the coefficients as a tuple.
+        """
+        return self._shape
+
+    @property
+    def ndim(self) -> int:
+        """
+        Get the number of dimensions of the coefficients of the equation.
+
+        :return: The number of dimensions.
+        """
+        return self._ndim
+
+    @property
+    def size(self) -> int:
+        """
+        Get the total number of coefficients in the equation.
+
+        :return: The total number of coefficients.
+        """
+        return self._coefficients.size
+
+    # Numpy interface and others
+    def flatten(self) -> "Equation":
+        """
+        Flatten the coefficients of the equation to a 1D numpy array.
+
+        :return: A 1D numpy array of coefficients.
+        """
+        flattened_coefficients = self._coefficients.flatten()
+        return Equation(flattened_coefficients)
+
+    def reshape(self, new_shape: tuple[int, ...]) -> "Equation":
+        """
+        Reshape the coefficients of the equation to a new shape.
+
+        :param new_shape: A tuple representing the new shape.
+        :return: A new Equation object with reshaped coefficients.
+        """
+        reshaped_coefficients = self._coefficients.reshape(new_shape)
+        return Equation(reshaped_coefficients)
+
+    def __len__(self) -> int:
+        """
+        Get the number of coefficients in the equation.
+
+        :return: The number of coefficients.
+
+        WARNING : This method returns the total number of coefficients,
+        overriding the default behavior of len() for numpy arrays.
+        This is useful for understanding the size of the equation,
+        thus this specific implementation.
+        """
+        return self.size
+
+    def norm(self) -> float:
+        """
+        Compute the norm of the coefficients of the equation.
+
+        :return: The norm of the coefficients.
+        """
+        return float(np.linalg.norm(self._coefficients))
+
+    def project_on(self, other: "Equation") -> "Equation":
+        """
+        Project this equation onto another equation.
+
+        :param other: Another Equation object to project onto.
+        :return: A new Equation object representing the projection.
+
+        This projection method is useful to determine linear relationships
+        between equations, allowing for checks of consistency across coefficients.
+        """
+        if not isinstance(other, Equation):
+            raise TypeError("Other must be an instance of Equation.")
+        if self._shape != other.shape:
+            raise ValueError("Both equations must have the same shape for projection.")
+
+        norm_other = other.norm()
+        if norm_other == 0:
+            raise ValueError("The other equation cannot be a zero vector.")
+
+        projection = (
+            np.dot(self._coefficients.flatten(), other.coefficients.flatten()) / norm_other**2
+        ) * other.coefficients
+        return Equation(projection)
+
+    def __eq__(self, other: object) -> bool:
+        """
+        Check if two Equation objects are equal.
+
+        :param other: Another Equation object to compare with.
+        :return: True if the equations are equal, False otherwise.
+        """
+        if not isinstance(other, Equation):
+            return False
+        return np.array_equal(self._coefficients, other.coefficients)
+
+    def approx_equal(self, other: "Equation", tol: float = 1e-10) -> bool:
+        """
+        Check if two Equation objects are approximately equal within a tolerance.
+
+        :param other: Another Equation object to compare with.
+        :param tol: The tolerance for comparison.
+        :return: True if the equations are approximately equal, False otherwise.
+        """
+        if not isinstance(other, Equation):
+            return False
+        return np.allclose(self._coefficients, other.coefficients, atol=tol)
+
+
+class QuotientEquations:
     def __init__(
         self,
         delta: int,
@@ -52,7 +205,7 @@ class QuotientInequalities:
 
     def check_compatible_dimension(
         self,
-        equation: np.ndarray,
+        equation: Equation,
     ) -> None:
         """
         Check if the dimension of the given equation matches the expected dimension.
@@ -70,31 +223,32 @@ class QuotientInequalities:
                 f"Expected equation to have dimension {expected_dim}, " f"but got {n_coordinates}."
             )
 
-    # # SIGN CONSISTENCY
-    # def canonicalize(eq: np.ndarray) -> np.ndarray:
-    #     """
-    #     Canonicalizes a hypeperplane equation by flattening its array if needed,
-    #     and setting the first nonzero element to be positive.
+    # CONSISTENCY ACROSS COEFFICIENTS
+    def are_equivalent(
+        self,
+        equation_a: Equation,
+        equation_b: Equation,
+        ineq: bool = False,
+    ) -> bool:
+        """
+        Check if two equations are equivalent.
 
-    #     This enables consistent representation of hyperplanes, for later
-    #     comparison in sets.
+        This method checks if two equations reflect the same linear
+        relationship, regardless of the sign or magnitude of the coefficients.
 
-    #     Note that :
-    #     - This may switch the sign of the hyperplane equation (ie, the normal vector's direction).
-    #     - This does not guarantee that the hyperplane is normalized (ie, unit length).
-    #     - This returns a 1D numpy array.
-    #     """
-    #     flat = eq.flatten()
-    #     idx = np.flatnonzero(flat)
-    #     if idx.size and flat[idx[0]] < 0:
-    #         flat = -flat
-    #     return flat
+        We actually check if the vectors are colinear,
+        and, if `ineq` is True, we also check that they have the same direction
+        (i.e., the same sign).
+        """
+        pass  # TODO: Implement this method
+
+        return False  # Placeholder return value
 
     # # FORMATTING FOR PERMUTATIONS
     def prepare_equation(
         self,
-        equation: np.ndarray,
-    ) -> np.ndarray:
+        equation: Equation,
+    ) -> Equation:
         """
         Format an equation to be used in permutations.
 
@@ -110,93 +264,93 @@ class QuotientInequalities:
 
     def flatten_equation(
         self,
-        equation: np.ndarray,
-    ) -> np.ndarray:
+        shaped_equation: Equation,
+    ) -> Equation:
         """
         Flatten an equation to a 1D numpy array.
 
         This is the inverse operation of `prepare_equation`.
         """
-        self.check_compatible_dimension(equation)
+        self.check_compatible_dimension(shaped_equation)
 
-        flattened_equation = equation.flatten()
+        flattened_equation = shaped_equation.flatten()
 
         return flattened_equation
 
     # PERMUTATIONS
     def permute_a(
         self,
-        equation: np.ndarray,
-    ) -> list[np.ndarray]:
+        equation: Equation,
+    ) -> list[Equation]:
         """Apply to an equation the permutation of coordinates
         corresponding to relabelings of a values."""
         permuted_equations = []
         permutable = self.prepare_equation(equation)
 
         for perm in permutations(range(self.delta)):
-            permuted_equations.append(permutable[:, list(perm), :, :, :])
+            permuted_equations.append(permutable.coefficients[:, list(perm), :, :, :])
 
         # Flatten the permuted equations back to the original shape
-        permuted_equations = [self.flatten_equation(eq) for eq in permuted_equations]
+        permuted_equations = [self.flatten_equation(Equation(eq)) for eq in permuted_equations]
 
         return permuted_equations
 
     def permute_b(
         self,
-        equation: np.ndarray,
-    ) -> list[np.ndarray]:
+        equation: Equation,
+    ) -> list[Equation]:
         """Apply to an equation the permutation of coordinates
         corresponding to relabelings of b values."""
         permuted_equations = []
         permutable = self.prepare_equation(equation)
 
         for perm in permutations(range(self.delta)):
-            permuted_equations.append(permutable[:, :, list(perm), :, :])
+            permuted_equations.append(permutable.coefficients[:, :, list(perm), :, :])
 
         # Flatten the permuted equations back to the original shape
-        permuted_equations = [self.flatten_equation(eq) for eq in permuted_equations]
+        permuted_equations = [self.flatten_equation(Equation(eq)) for eq in permuted_equations]
 
         return permuted_equations
 
     def permute_x(
         self,
-        equation: np.ndarray,
-    ) -> list[np.ndarray]:
+        equation: Equation,
+    ) -> list[Equation]:
         """Apply to an equation the permutation of coordinates
         corresponding to relabelings of x values."""
         permuted_equations = []
         permutable = self.prepare_equation(equation)
 
         for perm in permutations(range(self.delta)):
-            permuted_equations.append(permutable[:, :, :, list(perm), :])
+            permuted_equations.append(permutable.coefficients[:, :, :, list(perm), :])
 
         # Flatten the permuted equations back to the original shape
-        permuted_equations = [self.flatten_equation(eq) for eq in permuted_equations]
+        permuted_equations = [self.flatten_equation(Equation(eq)) for eq in permuted_equations]
 
         return permuted_equations
 
     def permute_y(
         self,
-        equation: np.ndarray,
-    ) -> list[np.ndarray]:
+        equation: Equation,
+    ) -> list[Equation]:
         """Apply to an equation the permutation of coordinates
         corresponding to relabelings of y values."""
         permuted_equations = []
         permutable = self.prepare_equation(equation)
 
         for perm in permutations(range(self.delta)):
-            permuted_equations.append(permutable[:, :, :, :, list(perm)])
+            permuted_equations.append(permutable.coefficients[:, :, :, :, list(perm)])
 
         # Flatten the permuted equations back to the original shape
-        permuted_equations = [self.flatten_equation(eq) for eq in permuted_equations]
+        permuted_equations = [self.flatten_equation(Equation(eq)) for eq in permuted_equations]
 
         return permuted_equations
 
     def permute(
         self,
         axis: int | str,
-        equation: np.ndarray,
-    ) -> list[np.ndarray]:
+        equation: Equation,
+    ) -> list[Equation]:
         """Permute an equation along the specified axis."""
 
         list_of_permutations = [
