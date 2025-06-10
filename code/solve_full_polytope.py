@@ -20,7 +20,7 @@ def contains(h_matrix, vector, tol=1e-10):
         dot_result = np.dot(inequality[1:], vector) + inequality[0]
 
         if i in h_matrix.lin_set and not abs(dot_result) < tol:
-            # If the inequality is linear and the dot product is not close to zero, it does not belong
+            # If the inequality is linear and the dot product is not close to zero, it does not belong  # noqa: E501
             belongs = False
             break
         elif i not in h_matrix.lin_set and dot_result < -tol:
