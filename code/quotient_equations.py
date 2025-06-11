@@ -1,4 +1,4 @@
-from abc import ABC, abstractmethod
+from abc import ABC
 from itertools import permutations
 
 import numpy as np
