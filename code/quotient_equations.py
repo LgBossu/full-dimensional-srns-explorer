@@ -16,8 +16,8 @@ class Equation:
 
         :param coefficients: A numpy array representing the coefficients of the equation.
         """
-        if not isinstance(coefficients, np.ndarray) or coefficients.ndim != 1:
-            raise TypeError("Coefficients must be a 1D numpy array.")
+        if not isinstance(coefficients, np.ndarray):
+            raise TypeError("Coefficients must be a numpy array.")
         if not np.issubdtype(coefficients.dtype, np.number):
             raise TypeError("Coefficients array must have a numeric dtype.")
         if not coefficients.flags["WRITEABLE"]:
@@ -169,9 +169,9 @@ class QuotientEquations:
         self.m = m
 
         if isinstance(ineq, list):
-            logger.debug(
-                "Inequalities should be a numpy array, not a list. Converting to numpy array."
-            )
+            # logger.debug(
+            #     "Inequalities should be a numpy array, not a list. Converting to numpy array."
+            # )
             ineq = np.array(ineq)
 
         assert isinstance(ineq, np.ndarray), "Inequalities must be a numpy array."
@@ -182,7 +182,7 @@ class QuotientEquations:
                 f"but got {ineq.shape}. This may lead to unexpected behavior."
             )
 
-        self.ineq = ineq
+        self._ineq = ineq
 
         assert isinstance(lin_set, set), "Linear set must be a set of integers."
         assert all(isinstance(i, int) for i in lin_set), "Linear set must contain integers."
@@ -197,12 +197,23 @@ class QuotientEquations:
         to dimension mismatches.
         """
         expected_dim = 2 * self.delta**2 * self.m**2 + 1
-        if self.ineq.shape[1] != expected_dim:
+        if self._ineq.shape[1] != expected_dim:
             raise ValueError(
                 f"Expected inequalities to have dimension {expected_dim}, "
-                f"but got {self.ineq.shape[1]}."
+                f"but got {self._ineq.shape[1]}."
             )
 
+    # Properties
+    @property
+    def ineq(self) -> np.ndarray:
+        """
+        Get the inequalities as a numpy array.
+
+        :return: The inequalities as a numpy array.
+        """
+        return self._ineq.copy()
+
+    # Checker for expected dimension and behavior
     def check_compatible_dimension(
         self,
         equation: Equation,
@@ -390,3 +401,144 @@ class QuotientEquations:
             raise TypeError(f"Axis must be an int or a str, got {type(axis)}")
 
         return permuted_equations
+
+    def extend_non_redundant(
+        self,
+        base_list: list[Equation],
+        new_equations: list[Equation],
+    ) -> None:
+        """
+        Extend a list of equations with new equations, ensuring no duplicates.
+
+        This method checks if each new equation is equivalent to any existing equation
+        in the base list. If not, it adds the new equation to the base list.
+
+        Modifies the base_list in place.
+        """
+        for new_eq in new_equations:
+            # logger.debug(
+            #     f"Checking if new equation {new_eq.coefficients} is redundant in list {len(base_list)}."
+            # )
+            if not any(self.are_equivalent(base_eq, new_eq) for base_eq in base_list):
+                # logger.debug(f"Adding new equation {new_eq.coefficients} to the base list.")
+                base_list.append(new_eq)
+
+        return None
+
+    def gen_orbit(
+        self,
+        equation: Equation,
+    ) -> list[Equation]:
+        """
+        Generate all orbit equations for a given equation.
+
+        This method generates all possible permutations of the equation's coefficients
+        across the specified axes, returning a list of Equation objects representing
+        each unique permutation.
+        """
+        orbit = []
+        axes_to_permute = [[bool(i) for i in bin(bin_string).zfill(4)] for bin_string in range(16)]
+        for axes in axes_to_permute:
+            if not any(axes):
+                # If no axes are selected, skip this iteration
+                continue
+            if axes[0]:
+                permuted = self.permute("a", equation)
+                self.extend_non_redundant(orbit, permuted)
+            if axes[1]:
+                permuted = self.permute("b", equation)
+                self.extend_non_redundant(orbit, permuted)
+            if axes[2]:
+                permuted = self.permute("x", equation)
+                self.extend_non_redundant(orbit, permuted)
+            if axes[3]:
+                permuted = self.permute("y", equation)
+                self.extend_non_redundant(orbit, permuted)
+
+        return orbit
+
+
+if __name__ == "__main__":
+    delta = 2
+    m = 2
+
+    eq_file = "output/measured_h_representation_equality_delta_2_m_2.csv"
+
+    with open(eq_file, "r") as f:
+        eq_array = np.loadtxt(f, delimiter=",", skiprows=1)
+    eq_list = list(eq_array)
+
+    quotienter = QuotientEquations(
+        delta=delta,
+        m=m,
+        ineq=eq_list,
+        lin_set=set(range(len(eq_list))),
+    )
+
+    # rd_idx = np.random.randint(0, len(eq_list))
+    # # rd_idx = 4  # For testing purposes
+    # print(f"Randomly selected equation (index {rd_idx}):")
+
+    # rd_eq = Equation(eq_list[rd_idx])
+
+    # print(quotienter.ineq.shape)
+    # print(quotienter.ineq[rd_idx])
+    # cst_part = rd_eq.coefficients[0]
+    # coeff_part = Equation(rd_eq.coefficients[1:])
+
+    all_orbits = []
+
+    for ref_equation in eq_list:
+        cst_part = ref_equation[0]
+        coeff_part = Equation(ref_equation[1:])
+
+        orbit = quotienter.gen_orbit(coeff_part)
+        print(f"\n\nOrbit size: {len(orbit)}")
+        with np.printoptions(threshold=np.inf, linewidth=np.inf):  # type: ignore
+            for eq in orbit:
+                print(eq.coefficients)
+
+        quotienter.extend_non_redundant(all_orbits, orbit)
+
+    print(f"\n\nTotal number of unique equations in all orbits: {len(all_orbits)}")
+
+    # logger.info("Permuting along a then b axes...")
+    # perm_ax = []
+    # quotienter.extend_non_redundant(perm_ax, quotienter.permute("a", coeff_part))
+    # for perm in perm_ax:
+    #     quotienter.extend_non_redundant(perm_ax, quotienter.permute("b", perm))
+
+    # logger.info("Permuting along b then a axes...")
+    # perm_xa = []
+    # quotienter.extend_non_redundant(perm_xa, quotienter.permute("b", coeff_part))
+    # for perm in perm_xa:
+    #     quotienter.extend_non_redundant(perm_xa, quotienter.permute("a", perm))
+
+    # with np.printoptions(threshold=np.inf, linewidth=np.inf):  # type: ignore
+    #     print(f"\n\nPermutations along a then b axis ({len(perm_ax)}):")
+    #     for eq in perm_ax:
+    #         print(eq.coefficients)
+
+    #     print(f"\n\nPermutations along b then a axis ({len(perm_xa)}):")
+    #     for eq in perm_xa:
+    #         print(eq.coefficients)
+
+    # # Check if the equation lists are equivalent, up to reordering of list elements
+    # fully_equivalent = True
+    # if len(perm_ax) != len(perm_xa):
+    #     fully_equivalent = False
+    # else:
+    #     for eq1 in perm_ax:
+    #         if not any(quotienter.are_equivalent(eq1, eq2) for eq2 in perm_xa):
+    #             fully_equivalent = False
+    #             break
+    #     if fully_equivalent:
+    #         for eq2 in perm_xa:
+    #             if not any(quotienter.are_equivalent(eq2, eq1) for eq1 in perm_ax):
+    #                 fully_equivalent = False
+    #                 break
+
+    # if fully_equivalent:
+    #     logger.success("The two lists of equations are equivalent.")
+    # else:
+    #     logger.error("The two lists of equations are NOT equivalent.")
