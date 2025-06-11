@@ -229,6 +229,7 @@ class QuotientEquations:
         equation_a: Equation,
         equation_b: Equation,
         ineq: bool = False,
+        tol_nonzero: float = 1e-10,
     ) -> bool:
         """
         Check if two equations are equivalent.
@@ -240,9 +241,17 @@ class QuotientEquations:
         and, if `ineq` is True, we also check that they have the same direction
         (i.e., the same sign).
         """
-        pass  # TODO: Implement this method
+        proj_a = equation_a.project_on(equation_b)
+        self_similar = proj_a.approx_equal(equation_a)
 
-        return False  # Placeholder return value
+        if self_similar and ineq:
+            # We need to check that the direction is right
+            a = equation_a.coefficients
+            b = equation_b.coefficients
+            nonzero_mask = (np.abs(a) > tol_nonzero) & (np.abs(b) > tol_nonzero)
+            return bool(np.all(np.sign(a[nonzero_mask]) == np.sign(b[nonzero_mask])))
+
+        return self_similar
 
     # # FORMATTING FOR PERMUTATIONS
     def prepare_equation(
