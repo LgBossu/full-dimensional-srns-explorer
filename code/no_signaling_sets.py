@@ -484,9 +484,7 @@ class LatentSRNSSet(BehaviorSet):
             ∑ₐ₍short₎ q = 1.
          2. Normalization for q_long: For each column of the long-path block,
             ∑ₐ₍long₎ q = 1.
-         3. β no-signaling constraints on q_long: for every β (represented as a tuple
-            of m digits in base delta) and for every x∈{1,…,m-1},
-            ∑ₐ q_long(a, β, 0, 1) = ∑ₐ q_long(a, β, x, 1)
+         3.,4.,5. No-signaling constraints
         """
 
         # TODO : check if and how to account for the positivity constraint.
@@ -539,7 +537,7 @@ class LatentSRNSSet(BehaviorSet):
         #    sum_b [q_short(a, b, x, 0, 0)] - sum_beta [q_long(a, beta, x, 1)] = 0
         # Meaning both y AND z are no-signaling towards Alice.
 
-        # First, sum_b [q_short(a, b, x, 0, 0) - q_short(a, b, x, y, z)] = 0
+        # First, sum_b [q_short(a, b, x, 0, 0) - q_short(a, b, x, y, 0)] = 0
         for a in range(delta):
             for x in range(m):
                 for y in range(1, m):  # z=0
