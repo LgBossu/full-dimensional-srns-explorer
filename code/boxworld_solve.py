@@ -31,7 +31,7 @@ from time import time
 from typing import Union
 
 import numpy as np
-from behaviors import routed_indices_to_index
+from behaviors import routed_indices_to_index, short_range_indices_to_index
 from loguru import logger
 
 
@@ -56,16 +56,16 @@ class BoxworldVertex(Enum):
     The vertices of the regular boxworld polytope.
     """
 
-    # # As per `Generalizations of Boxworld`
-    # w1 = ArrayWrapper(np.array([1, 0, 1]))
-    # w2 = ArrayWrapper(np.array([0, 1, 1]))
-    # w3 = ArrayWrapper(np.array([-1, 0, 1]))
-    # w4 = ArrayWrapper(np.array([0, -1, 1]))
-    # As per `General Probabilistic Theories - An Introduction`
-    w1 = ArrayWrapper(np.array([0, 0, 1]))
-    w2 = ArrayWrapper(np.array([1, 0, 1]))
-    w3 = ArrayWrapper(np.array([0, 1, 1]))
-    w4 = ArrayWrapper(np.array([1, 1, 1]))
+    # As per `Generalizations of Boxworld`
+    w1 = ArrayWrapper(np.array([1, 0, 1]))
+    w2 = ArrayWrapper(np.array([0, 1, 1]))
+    w3 = ArrayWrapper(np.array([-1, 0, 1]))
+    w4 = ArrayWrapper(np.array([0, -1, 1]))
+    # # As per `General Probabilistic Theories - An Introduction`
+    # w1 = ArrayWrapper(np.array([0, 0, 1]))
+    # w2 = ArrayWrapper(np.array([1, 0, 1]))
+    # w3 = ArrayWrapper(np.array([0, 1, 1]))
+    # w4 = ArrayWrapper(np.array([1, 1, 1]))
 
 
 class BoxworldEffect(Enum):
@@ -73,18 +73,22 @@ class BoxworldEffect(Enum):
     The effects of the boxworld polytope.
     """
 
-    # # As per `Generalizations of Boxworld`
-    # u = ArrayWrapper(np.array([0, 0, 1]))
-    # e1 = ArrayWrapper((1 / 2) * np.array([-1, -1, 1]))
-    # e2 = ArrayWrapper((1 / 2) * np.array([1, -1, 1]))
-    # e3 = ArrayWrapper((1 / 2) * np.array([1, 1, 1]))
-    # e4 = ArrayWrapper((1 / 2) * np.array([-1, 1, 1]))
-    # As per `General Probabilistic Theories - An Introduction`
+    # As per `Generalizations of Boxworld`
     u = ArrayWrapper(np.array([0, 0, 1]))
-    e1 = ArrayWrapper(np.array([1, 0, 0]))
-    e2 = ArrayWrapper(np.array([0, 1, 0]))
-    e3 = ArrayWrapper(np.array([-1, 0, 1]))
-    e4 = ArrayWrapper(np.array([0, -1, 1]))
+    zero = ArrayWrapper(
+        np.array([0, 0, 0])
+    )  # For normalization, we need zero as u's complement effect
+    e1 = ArrayWrapper((1 / 2) * np.array([-1, -1, 1]))
+    e2 = ArrayWrapper((1 / 2) * np.array([1, -1, 1]))
+    e3 = ArrayWrapper((1 / 2) * np.array([1, 1, 1]))
+    e4 = ArrayWrapper((1 / 2) * np.array([-1, 1, 1]))
+    # # As per `General Probabilistic Theories - An Introduction`
+    # u = ArrayWrapper(np.array([0, 0, 1]))
+    # zero = ArrayWrapper(np.array([0, 0, 0]))
+    # e1 = ArrayWrapper(np.array([1, 0, 0]))
+    # e2 = ArrayWrapper(np.array([0, 1, 0]))
+    # e3 = ArrayWrapper(np.array([-1, 0, 1]))
+    # e4 = ArrayWrapper(np.array([0, -1, 1]))
 
 
 # class ComputedEffect:
@@ -142,15 +146,15 @@ class BoxworldBipartiteVertex(Enum):
 
     # Then come the eight additional entangled pure states
 
-    # # Entangled formulas as per `Generalizations of Boxworld`
-    # w17 = ArrayWrapper((1 / 2) * (w2.arr - w6.arr + w7.arr + w9.arr))
-    # w18 = ArrayWrapper((1 / 2) * (w6.arr - w11.arr + w12.arr + w15.arr))
-    # w19 = ArrayWrapper((1 / 2) * (w1.arr - w6.arr + w7.arr + w10.arr))
-    # w20 = ArrayWrapper((1 / 2) * (w6.arr - w10.arr + w11.arr + w13.arr))
-    # w21 = ArrayWrapper((1 / 2) * (w4.arr - w1.arr + w5.arr + w14.arr))
-    # w22 = ArrayWrapper((1 / 2) * (w4.arr - w1.arr + w6.arr + w13.arr))
-    # w23 = ArrayWrapper((1 / 2) * (w1.arr - w2.arr + w6.arr + w15.arr))
-    # w24 = ArrayWrapper((1 / 2) * (w1.arr - w4.arr + w8.arr + w15.arr))
+    # Entangled formulas as per `Generalizations of Boxworld`
+    w17 = ArrayWrapper((1 / 2) * (w2.arr - w6.arr + w7.arr + w9.arr))
+    w18 = ArrayWrapper((1 / 2) * (w6.arr - w11.arr + w12.arr + w15.arr))
+    w19 = ArrayWrapper((1 / 2) * (w1.arr - w6.arr + w7.arr + w10.arr))
+    w20 = ArrayWrapper((1 / 2) * (w6.arr - w10.arr + w11.arr + w13.arr))
+    w21 = ArrayWrapper((1 / 2) * (w4.arr - w1.arr + w5.arr + w14.arr))
+    w22 = ArrayWrapper((1 / 2) * (w4.arr - w1.arr + w6.arr + w13.arr))
+    w23 = ArrayWrapper((1 / 2) * (w1.arr - w2.arr + w6.arr + w15.arr))
+    w24 = ArrayWrapper((1 / 2) * (w1.arr - w4.arr + w8.arr + w15.arr))
 
 
 # class BoxworldBipartiteEffect(Enum):
@@ -219,7 +223,8 @@ complements = {
     BoxworldEffect.e2: BoxworldEffect.e4,
     BoxworldEffect.e3: BoxworldEffect.e1,
     BoxworldEffect.e4: BoxworldEffect.e2,
-    BoxworldEffect.u: BoxworldEffect.u,
+    BoxworldEffect.u: BoxworldEffect.zero,
+    BoxworldEffect.zero: BoxworldEffect.u,
 }
 
 
@@ -243,7 +248,7 @@ def generate_all_extremal_points() -> list[np.ndarray]:
     computed_total = 0
     start_time = time()
 
-    for state in [BoxworldBipartiteVertex.w1]:
+    for state in BoxworldBipartiteVertex:
         logger.info(f"Processing state: {state.value.arr}")
         for (
             alice_measurement0,
@@ -302,15 +307,15 @@ def generate_all_extremal_points() -> list[np.ndarray]:
                                 routed_indices_to_index(a, transform.value.arr[b_prime, y], x, y, 1)
                             ] += np.dot(np.kron(alice[x][a], bob_long[b_prime]), state.value.arr)
 
-                    # Normalize the distribution
-                    # It should be normalized already
+                    # Check normalization on the short-path
+                    # it should already be normalized
                     normalized = True
-                    for x, y, z in [(i, j, k) for i in [0, 1] for j in [0, 1] for k in [0, 1]]:
+                    for x, y in [(i, j) for i in [0, 1] for j in [0, 1]]:
                         total = np.sum(
                             [
                                 distribution[i]
                                 for i in [
-                                    routed_indices_to_index(_a, _b, x, y, z)
+                                    routed_indices_to_index(_a, _b, x, y, 0)
                                     for _a in [0, 1]
                                     for _b in [0, 1]
                                 ]
@@ -319,6 +324,32 @@ def generate_all_extremal_points() -> list[np.ndarray]:
                         if total != 1:
                             logger.error(f"Distribution not normalized: {total} != 1")
                             normalized = False
+
+                    # Normalize the long-path distribution
+                    for x in [0, 1]:
+                        total = np.sum(
+                            [
+                                distribution[i]
+                                for i in [
+                                    short_range_indices_to_index((_a, _beta, x, 1))
+                                    for _a in [0, 1]
+                                    for _beta in [
+                                        (beta0, beta1) for beta0 in [0, 1] for beta1 in [0, 1]
+                                    ]
+                                ]
+                            ]
+                        )
+                        if total > 0:
+                            for i in [
+                                short_range_indices_to_index((_a, _beta, x, 1))
+                                for _a in [0, 1]
+                                for _beta in [
+                                    (beta0, beta1) for beta0 in [0, 1] for beta1 in [0, 1]
+                                ]
+                            ]:
+                                distribution[i] /= total
+                        else:
+                            raise ValueError(f"Zero probability along path (x={x})")
 
                     # Log info periodically
                     computed_total += 1
@@ -337,14 +368,14 @@ def generate_all_extremal_points() -> list[np.ndarray]:
                         pass
                     else:
                         computed_distributions.append(distribution)
-                        logger.success(f"Computed distribution:\n{distribution.reshape((2,4,4))}")
+                        logger.success(f"Added distribution:\n{distribution.reshape((2,4,4))}")
                         if not normalized:
                             logger.error("Distribution is not normalized.")
                             logger.info(
-                                f"\nstate: {state.value.arr}, \n"
-                                f"alice: {alice}, \n"
+                                f"\nstate:   {state.value.arr}, \n"
+                                f"alice:     {alice}, \n"
                                 f"bob_short: {bob_short}, \n"
-                                f"bob_long: {bob_long}, \n"
+                                f"bob_long:  {bob_long}, \n"
                                 f"transform: {transform.value.arr}\n"
                             )
                             raise ValueError("Distribution is not normalized.")
