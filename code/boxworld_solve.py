@@ -56,10 +56,16 @@ class BoxworldVertex(Enum):
     The vertices of the regular boxworld polytope.
     """
 
-    w1 = ArrayWrapper(np.array([1, 0, 1]))
-    w2 = ArrayWrapper(np.array([0, 1, 1]))
-    w3 = ArrayWrapper(np.array([-1, 0, 1]))
-    w4 = ArrayWrapper(np.array([0, -1, 1]))
+    # # As per `Generalizations of Boxworld`
+    # w1 = ArrayWrapper(np.array([1, 0, 1]))
+    # w2 = ArrayWrapper(np.array([0, 1, 1]))
+    # w3 = ArrayWrapper(np.array([-1, 0, 1]))
+    # w4 = ArrayWrapper(np.array([0, -1, 1]))
+    # As per `General Probabilistic Theories - An Introduction`
+    w1 = ArrayWrapper(np.array([0, 0, 1]))
+    w2 = ArrayWrapper(np.array([1, 0, 1]))
+    w3 = ArrayWrapper(np.array([0, 1, 1]))
+    w4 = ArrayWrapper(np.array([1, 1, 1]))
 
 
 class BoxworldEffect(Enum):
@@ -67,25 +73,33 @@ class BoxworldEffect(Enum):
     The effects of the boxworld polytope.
     """
 
+    # # As per `Generalizations of Boxworld`
+    # u = ArrayWrapper(np.array([0, 0, 1]))
+    # e1 = ArrayWrapper((1 / 2) * np.array([-1, -1, 1]))
+    # e2 = ArrayWrapper((1 / 2) * np.array([1, -1, 1]))
+    # e3 = ArrayWrapper((1 / 2) * np.array([1, 1, 1]))
+    # e4 = ArrayWrapper((1 / 2) * np.array([-1, 1, 1]))
+    # As per `General Probabilistic Theories - An Introduction`
     u = ArrayWrapper(np.array([0, 0, 1]))
-    e1 = ArrayWrapper((1 / 2) * np.array([-1, -1, 1]))
-    e2 = ArrayWrapper((1 / 2) * np.array([1, -1, 1]))
-    e3 = ArrayWrapper((1 / 2) * np.array([1, 1, 1]))
-    e4 = ArrayWrapper((1 / 2) * np.array([-1, 1, 1]))
+    e1 = ArrayWrapper(np.array([1, 0, 0]))
+    e2 = ArrayWrapper(np.array([0, 1, 0]))
+    e3 = ArrayWrapper(np.array([-1, 0, 1]))
+    e4 = ArrayWrapper(np.array([0, -1, 1]))
 
 
-class ComputedEffect:
-    def __init__(self, value: np.ndarray):
-        self.value = ArrayWrapper(value)
+# class ComputedEffect:
+#     def __init__(self, value: np.ndarray):
+#         self.value = ArrayWrapper(value)
 
-    def __eq__(self, other: object) -> bool:
-        if not isinstance(other, Union[BoxworldEffect, "ComputedEffect"]):
-            return False
-        return self.value == other.value
+#     def __eq__(self, other: object) -> bool:
+#         if not isinstance(other, Union[BoxworldEffect, "ComputedEffect"]):
+#             return False
+#         return self.value == other.value
 
 
-Effect = Union[BoxworldEffect, ComputedEffect]
-BoxworldObject = Union[BoxworldVertex, Effect]
+# Effect = Union[BoxworldEffect, ComputedEffect]
+# BoxworldObject = Union[BoxworldVertex, Effect]
+BoxworldObject = Union[BoxworldVertex, BoxworldEffect]
 
 
 def tensor_product(a: BoxworldObject, b: BoxworldObject) -> np.ndarray:
@@ -127,14 +141,16 @@ class BoxworldBipartiteVertex(Enum):
     w16 = ArrayWrapper(tensor_product(BoxworldVertex.w4, BoxworldVertex.w4))  # (4, 4)
 
     # Then come the eight additional entangled pure states
-    w17 = ArrayWrapper((1 / 2) * (w2.arr - w6.arr + w7.arr + w9.arr))
-    w18 = ArrayWrapper((1 / 2) * (w6.arr - w11.arr + w12.arr + w15.arr))
-    w19 = ArrayWrapper((1 / 2) * (w1.arr - w6.arr + w7.arr + w10.arr))
-    w20 = ArrayWrapper((1 / 2) * (w6.arr - w10.arr + w11.arr + w13.arr))
-    w21 = ArrayWrapper((1 / 2) * (w4.arr - w1.arr + w5.arr + w14.arr))
-    w22 = ArrayWrapper((1 / 2) * (w4.arr - w1.arr + w6.arr + w13.arr))
-    w23 = ArrayWrapper((1 / 2) * (w1.arr - w2.arr + w6.arr + w15.arr))
-    w24 = ArrayWrapper((1 / 2) * (w1.arr - w4.arr + w8.arr + w15.arr))
+
+    # # Entangled formulas as per `Generalizations of Boxworld`
+    # w17 = ArrayWrapper((1 / 2) * (w2.arr - w6.arr + w7.arr + w9.arr))
+    # w18 = ArrayWrapper((1 / 2) * (w6.arr - w11.arr + w12.arr + w15.arr))
+    # w19 = ArrayWrapper((1 / 2) * (w1.arr - w6.arr + w7.arr + w10.arr))
+    # w20 = ArrayWrapper((1 / 2) * (w6.arr - w10.arr + w11.arr + w13.arr))
+    # w21 = ArrayWrapper((1 / 2) * (w4.arr - w1.arr + w5.arr + w14.arr))
+    # w22 = ArrayWrapper((1 / 2) * (w4.arr - w1.arr + w6.arr + w13.arr))
+    # w23 = ArrayWrapper((1 / 2) * (w1.arr - w2.arr + w6.arr + w15.arr))
+    # w24 = ArrayWrapper((1 / 2) * (w1.arr - w4.arr + w8.arr + w15.arr))
 
 
 # class BoxworldBipartiteEffect(Enum):
