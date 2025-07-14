@@ -384,13 +384,50 @@ def generate_all_extremal_points() -> list[np.ndarray]:
 
 
 if __name__ == "__main__":
-    # Generate all extremal points of the routed Bell experiment boxworld strategies
-    extremal_points = generate_all_extremal_points()
+    # # Generate all extremal points of the routed Bell experiment boxworld strategies
+    # extremal_points = generate_all_extremal_points()
 
-    # Print the number of unique extremal points found
-    print(f"Number of unique extremal points: {len(extremal_points)}")
+    # # Print the number of unique extremal points found
+    # print(f"Number of unique extremal points: {len(extremal_points)}")
 
-    # Write the extremal points to a file
-    with open("boxworld_extremals.txt", "w") as f:
-        for point in extremal_points:
-            f.write(f"{point.tolist()}\n".replace("[", "").replace("]", ""))
+    # # Write the extremal points to a file
+    # with open("boxworld_extremals.txt", "w") as f:
+    #     for point in extremal_points:
+    #         f.write(f"{point.tolist()}\n".replace("[", "").replace("]", "").replace(" ", ""))
+
+    # Solve the boxworld polytope using the CDD solver
+    from solve_full_polytope import PolytopeTypes, PolytopeWrapper, RepTypes
+
+    vertices = np.loadtxt("boxworld_extremals.txt", delimiter=",")
+    logger.info(f"Loaded {len(vertices)} vertices from boxworld_extremals.txt")
+
+    v_representation = np.hstack(
+        [
+            np.ones(
+                (len(vertices), 1)
+            ),  # Add a column of ones to indicate these are proper vertices
+            vertices,
+        ]
+    )
+
+    print(f"Vertices shape: {v_representation.shape}")
+    print(v_representation[:, 0])  # Print first 5 vertices for debugging
+
+    logger.info("Starting to solve the boxworld polytope...")
+    solver = PolytopeWrapper(
+        source_array=v_representation,
+        rep_type=RepTypes.GENERATOR,
+        lin_set=None,
+    )
+    logger.info("Boxworld polytope loaded.")
+
+    solver.write_inequalities(
+        polytope_type=PolytopeTypes.MEASURED,
+        file_id="boxworld_polytope",
+    )
+
+    # bounded = solver.is_bounded()
+    # if bounded:
+    #     logger.info("The boxworld polytope is bounded.")
+    # else:
+    #     logger.warning("The boxworld polytope is unbounded?")
