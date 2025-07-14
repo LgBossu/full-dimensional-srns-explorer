@@ -426,8 +426,8 @@ if __name__ == "__main__":
         file_id="boxworld_polytope",
     )
 
-    # bounded = solver.is_bounded()
-    # if bounded:
-    #     logger.info("The boxworld polytope is bounded.")
-    # else:
-    #     logger.warning("The boxworld polytope is unbounded?")
+    bounded = solver.is_bounded()
+    if bounded:
+        logger.info("The boxworld polytope is bounded.")
+    else:
+        logger.warning("The boxworld polytope is unbounded?")
