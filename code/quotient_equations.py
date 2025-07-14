@@ -627,7 +627,7 @@ symbolic_equation = np.array(
 
 
 if __name__ == "__main__":
-    equation_file = "output/measured_h_representation_inequality_delta_2_m_2.csv"
+    equation_file = "output/measured_h_representation_inequality_boxworld_polytope.csv"
 
     with open(equation_file, "r") as f:
         # Read the coefficients from the file
