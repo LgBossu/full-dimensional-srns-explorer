@@ -310,12 +310,12 @@ def generate_all_extremal_points() -> list[np.ndarray]:
                     # Check normalization on the short-path
                     # it should already be normalized
                     normalized = True
-                    for x, y in [(i, j) for i in [0, 1] for j in [0, 1]]:
+                    for x, y, z in [(i, j, k) for i in [0, 1] for j in [0, 1] for k in [0, 1]]:
                         total = np.sum(
                             [
                                 distribution[i]
                                 for i in [
-                                    routed_indices_to_index(_a, _b, x, y, 0)
+                                    routed_indices_to_index(_a, _b, x, y, z)
                                     for _a in [0, 1]
                                     for _b in [0, 1]
                                 ]
@@ -324,32 +324,6 @@ def generate_all_extremal_points() -> list[np.ndarray]:
                         if total != 1:
                             logger.error(f"Distribution not normalized: {total} != 1")
                             normalized = False
-
-                    # Normalize the long-path distribution
-                    for x in [0, 1]:
-                        total = np.sum(
-                            [
-                                distribution[i]
-                                for i in [
-                                    short_range_indices_to_index((_a, _beta, x, 1))
-                                    for _a in [0, 1]
-                                    for _beta in [
-                                        (beta0, beta1) for beta0 in [0, 1] for beta1 in [0, 1]
-                                    ]
-                                ]
-                            ]
-                        )
-                        if total > 0:
-                            for i in [
-                                short_range_indices_to_index((_a, _beta, x, 1))
-                                for _a in [0, 1]
-                                for _beta in [
-                                    (beta0, beta1) for beta0 in [0, 1] for beta1 in [0, 1]
-                                ]
-                            ]:
-                                distribution[i] /= total
-                        else:
-                            raise ValueError(f"Zero probability along path (x={x})")
 
                     # Log info periodically
                     computed_total += 1
