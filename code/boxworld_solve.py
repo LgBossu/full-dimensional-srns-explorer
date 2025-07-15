@@ -28,6 +28,7 @@ Germany```
 
 from enum import Enum
 from time import time
+from tqdm import tqdm
 from typing import Union
 
 import numpy as np
@@ -248,8 +249,8 @@ def generate_all_extremal_points() -> list[np.ndarray]:
     computed_total = 0
     start_time = time()
 
-    for state in BoxworldBipartiteVertex:
-        logger.info(f"Processing state: {state.value.arr}")
+    for state in tqdm(BoxworldBipartiteVertex):
+        # logger.info(f"Processing state: {state.value.arr}")
         for (
             alice_measurement0,
             alice_measurement1,
@@ -310,12 +311,12 @@ def generate_all_extremal_points() -> list[np.ndarray]:
                     # Check normalization on the short-path
                     # it should already be normalized
                     normalized = True
-                    for x, y, z in [(i, j, k) for i in [0, 1] for j in [0, 1] for k in [0, 1]]:
+                    for x, y in [(i, j) for i in [0, 1] for j in [0, 1]]:
                         total = np.sum(
                             [
                                 distribution[i]
                                 for i in [
-                                    routed_indices_to_index(_a, _b, x, y, z)
+                                    routed_indices_to_index(_a, _b, x, y, 0)
                                     for _a in [0, 1]
                                     for _b in [0, 1]
                                 ]
@@ -325,14 +326,37 @@ def generate_all_extremal_points() -> list[np.ndarray]:
                             logger.error(f"Distribution not normalized: {total} != 1")
                             normalized = False
 
+                    # Normalize the long-path
+                    for x, y in [(i, j) for i in [0, 1] for j in [0, 1]]:
+                        total = np.sum(
+                            [
+                                distribution[i]
+                                for i in [
+                                    routed_indices_to_index(_a, _b, x, y, 1)
+                                    for _a in [0, 1]
+                                    for _b in [0, 1]
+                                ]
+                            ]
+                        )
+                        if total > 0:
+                            for i in [
+                                routed_indices_to_index(_a, _b, x, y, 1)
+                                for _a in [0, 1]
+                                for _b in [0, 1]
+                            ]:
+                                distribution[i] /= total
+                        else:
+                            logger.error(f"Long-path distribution not normalized: {total} <= 0")
+                            normalized = False
+
                     # Log info periodically
-                    computed_total += 1
-                    if computed_total % 10000 == 0:
-                        logger.info(f"Computed {computed_total}/1.200.000 distributions so far.")
-                        elapsed_time = time() - start_time
-                        logger.info(f"Elapsed time: {elapsed_time:.2f} seconds")
-                        eta = (time() - start_time) * (1_200_000 - computed_total) / computed_total
-                        logger.info(f"Estimated time remaining: {eta//60} minutes")
+                    # computed_total += 1
+                    # if computed_total % 10000 == 0:
+                    #     logger.info(f"Computed {computed_total}/1.200.000 distributions so far.")
+                    #     elapsed_time = time() - start_time
+                    #     logger.info(f"Elapsed time: {elapsed_time:.2f} seconds")
+                    #     eta = (time() - start_time) * (1_200_000 - computed_total) / computed_total
+                    #     logger.info(f"Estimated time remaining: {eta//60} minutes")
 
                     # Flatten the distribution to a 1D array
                     distribution = distribution.flatten()
@@ -342,32 +366,32 @@ def generate_all_extremal_points() -> list[np.ndarray]:
                         pass
                     else:
                         computed_distributions.append(distribution)
-                        logger.success(f"Added distribution:\n{distribution.reshape((2,4,4))}")
+                        # logger.success(f"Added distribution:\n{distribution.reshape((2,4,4))}")
                         if not normalized:
-                            logger.error("Distribution is not normalized.")
-                            logger.info(
-                                f"\nstate:   {state.value.arr}, \n"
-                                f"alice:     {alice}, \n"
-                                f"bob_short: {bob_short}, \n"
-                                f"bob_long:  {bob_long}, \n"
-                                f"transform: {transform.value.arr}\n"
-                            )
+                            # logger.error("Distribution is not normalized.")
+                            # logger.info(
+                            #     f"\nstate:   {state.value.arr}, \n"
+                            #     f"alice:     {alice}, \n"
+                            #     f"bob_short: {bob_short}, \n"
+                            #     f"bob_long:  {bob_long}, \n"
+                            #     f"transform: {transform.value.arr}\n"
+                            # )
                             raise ValueError("Distribution is not normalized.")
 
     return computed_distributions
 
 
 if __name__ == "__main__":
-    # # Generate all extremal points of the routed Bell experiment boxworld strategies
-    # extremal_points = generate_all_extremal_points()
+    # Generate all extremal points of the routed Bell experiment boxworld strategies
+    extremal_points = generate_all_extremal_points()
 
-    # # Print the number of unique extremal points found
-    # print(f"Number of unique extremal points: {len(extremal_points)}")
+    # Print the number of unique extremal points found
+    print(f"Number of unique extremal points: {len(extremal_points)}")
 
-    # # Write the extremal points to a file
-    # with open("boxworld_extremals.txt", "w") as f:
-    #     for point in extremal_points:
-    #         f.write(f"{point.tolist()}\n".replace("[", "").replace("]", "").replace(" ", ""))
+    # Write the extremal points to a file
+    with open("boxworld_extremals.txt", "w") as f:
+        for point in extremal_points:
+            f.write(f"{point.tolist()}\n".replace("[", "").replace("]", "").replace(" ", ""))
 
     # Solve the boxworld polytope using the CDD solver
     from solve_full_polytope import PolytopeTypes, PolytopeWrapper, RepTypes
