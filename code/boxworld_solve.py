@@ -263,12 +263,12 @@ def generate_all_extremal_points() -> list[np.ndarray]:
             for k in BoxworldEffect
             for l in BoxworldEffect
         ]:
-            if alice_measurement0 == alice_measurement1:
-                continue  # Skip if Alice's measurements are the same, this is a trivial strategy
+            # if alice_measurement0 == alice_measurement1:
+            #     continue  # Skip if Alice's measurements are the same, this is a trivial strategy
             alice_complement0 = get_complement_effect(alice_measurement0)
             alice_complement1 = get_complement_effect(alice_measurement1)
-            if bob_short_measurement0 == bob_short_measurement1:
-                continue  # Skip if Bob's short channel measurements are the same, this is a trivial strategy
+            # if bob_short_measurement0 == bob_short_measurement1:
+            #     continue  # Skip if Bob's short channel measurements are the same, this is a trivial strategy
             bob_short_complement0 = get_complement_effect(bob_short_measurement0)
             bob_short_complement1 = get_complement_effect(bob_short_measurement1)
 
