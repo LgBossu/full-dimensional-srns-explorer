@@ -1,0 +1,9 @@
+All Rights Reserved
+
+Copyright (c) 2025 Louis-Guillaume Bossu (École polytechnique, FRANCE), in internship at Université libre de Bruxelles (ULB) (BELGIUM), and collaborating researchers.
+
+This repository and its contents are provided for the exclusive purpose of project defense and academic evaluation. No part of this codebase may be copied, distributed, or used for any other purpose without explicit written permission from the copyright holders.
+
+All rights to third-party modules and libraries used in this project remain with their respective owners.
+
+For any inquiries, please contact the repository author.
