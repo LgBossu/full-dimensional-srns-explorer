@@ -7,3 +7,4 @@ notebooks_legacy/
 *.ipynb_checkpoints
 docs/
 code_legacy/
+output/legacy/
