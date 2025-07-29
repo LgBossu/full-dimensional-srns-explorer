@@ -57,6 +57,9 @@ The `output/` directory contains results and intermediate files, such as:
    Most scripts require `numpy`, `scipy`, `loguru`, `cdd`, `tqdm`, and optionally `polytopewalk` and `scikit-learn`.
    A `pyproject.toml` file is provided at root level for dependency management.
 
+   **NB:** This project also requires access to the C-based `cdd` library, along with its python wrapper `pycddlib`. This should be externally installed and available on the running system.
+
+
 2. **Run analyses:**  
    - Use `solve_full_polytope.py` to enumerate and analyze the SRNS polytope.
    - Use `samplers.py` to generate and analyze samples from the no-signaling set.
