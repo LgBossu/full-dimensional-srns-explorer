@@ -526,7 +526,7 @@ if __name__ == "__main__":
     for i in range(24):
         # Generate all extremal points of the routed Bell experiment boxworld strategies
         extremal_points = generate_all_extremal_points(
-            delta=2, m_alice=2, m_bob_short=2, m_bob_long=2, idx_range=(i, i)
+            delta=2, m_alice=2, m_bob_short=2, m_bob_long=3, idx_range=(i, i)
         )
 
         # Write the extremal points to a file
