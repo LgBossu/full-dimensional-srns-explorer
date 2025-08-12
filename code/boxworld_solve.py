@@ -352,16 +352,14 @@ def generate_all_extremal_points(
         """
         if z == 0:
             return (
-                (z * (delta**2 * m_alice * m_bob_short))
-                + (a * (delta * m_alice * m_bob_short))
+                (a * (delta * m_alice * m_bob_short))
                 + (b * (m_alice * m_bob_short))
                 + (x * m_alice)
                 + y
             )
         elif z == 1:
             return (
-                (z * (delta**2 * m_alice * m_bob_long))
-                + (a * (delta * m_alice * m_bob_long))
+                (a * (delta * m_alice * m_bob_long))
                 + (b * (m_alice * m_bob_long))
                 + (x * m_alice)
                 + y
@@ -512,6 +510,9 @@ def generate_all_extremal_points(
     return computed_distributions
 
 
+# ################
+
+
 if __name__ == "__main__":
     exp_name = str(input("Enter experiment name: ")).strip()
     exp_file = f"boxworld_extremals_{exp_name}.txt"
@@ -519,7 +520,7 @@ if __name__ == "__main__":
     for i in range(24):
         # Generate all extremal points of the routed Bell experiment boxworld strategies
         extremal_points = generate_all_extremal_points(
-            delta=2, m_alice=2, m_bob_short=2, m_bob_long=3, idx_range=(i, i)
+            delta=2, m_alice=2, m_bob_short=2, m_bob_long=2, idx_range=(i, i)
         )
 
         # Write the extremal points to a file
