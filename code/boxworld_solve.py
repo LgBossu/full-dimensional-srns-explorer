@@ -26,13 +26,13 @@ Am Hubland
 Germany```
 """
 
+import itertools
 from enum import Enum
 from time import time
 from typing import Union
-import itertools
 
+# from behaviors import routed_indices_to_index, short_range_indices_to_index
 import numpy as np
-from behaviors import routed_indices_to_index, short_range_indices_to_index
 from loguru import logger
 from tqdm import tqdm
 
@@ -317,7 +317,8 @@ def get_complement_effect(effect: BoxworldEffect) -> BoxworldEffect:
 
 def generate_all_extremal_points(
     delta: int = 2,
-    m: int = 3,
+    m_alice: int = 2,
+    m_bob: int = 2,
     idx_range: tuple[int, int] = (0, 23),
 ) -> list[np.ndarray]:
     """
@@ -329,10 +330,10 @@ def generate_all_extremal_points(
         Generate all relabelings (symmetries) of a distribution by permuting Alice/Bob inputs x and y.
         Returns all unique permutations as flattened arrays.
         """
-        shaped = distribution.reshape((2, delta, delta, m, m))  # (z,a,b,x,y)
+        shaped = distribution.reshape((2, delta, delta, m_alice, m_bob))  # (z,a,b,x,y)
         symmetries: list[np.ndarray] = []
-        x_perms = list(itertools.permutations(range(m)))
-        y_perms = list(itertools.permutations(range(m)))
+        x_perms = list(itertools.permutations(range(m_alice)))
+        y_perms = list(itertools.permutations(range(m_bob)))
         for x_perm in x_perms:
             for y_perm in y_perms:
                 # Permute x and y axes
@@ -348,6 +349,18 @@ def generate_all_extremal_points(
                 seen.add(key)
         return unique
 
+    def routed_indices_to_index(a, b, x, y, z):
+        """
+        In the routed setting, convert a set of indices to the corresponding 1-D index
+        """
+        return (
+            (z * (delta**2 * m_alice * m_bob))
+            + (a * (delta * m_alice * m_bob))
+            + (b * (m_alice * m_bob))
+            + (x * m_alice)
+            + y
+        )
+
     computed_distributions = []  # This will hold all computed effects
 
     vertices = list(BoxworldBipartiteVertex)[idx_range[0] : idx_range[1] + 1]
@@ -357,17 +370,19 @@ def generate_all_extremal_points(
         # Only iterate over canonical measurement tuples (no redundant permutations)
         from itertools import combinations_with_replacement
 
-        canonical_measurements = list(combinations_with_replacement(BoxworldEffect, m))
+        canonical_measurements_alice = list(combinations_with_replacement(BoxworldEffect, m_alice))
+        canonical_measurements_bob = list(combinations_with_replacement(BoxworldEffect, m_bob))
 
         for alice_tuple, bob_short_tuple in tqdm(
-            [(i, j) for i in canonical_measurements for j in canonical_measurements]
+            [(i, j) for i in canonical_measurements_alice for j in canonical_measurements_bob]
         ):
             alice = [
-                [alice_tuple[i].value.arr, complements[alice_tuple[i]].value.arr] for i in range(m)
+                [alice_tuple[i].value.arr, complements[alice_tuple[i]].value.arr]
+                for i in range(m_alice)
             ]
             bob_short = [
                 [bob_short_tuple[i].value.arr, complements[bob_short_tuple[i]].value.arr]
-                for i in range(m)
+                for i in range(m_bob)
             ]
 
             for bob_long_measurement in BoxworldEffect:
@@ -376,13 +391,13 @@ def generate_all_extremal_points(
                     complements[bob_long_measurement].value.arr,
                 ]
 
-                if m not in [2, 3]:
+                if m_bob not in [2, 3]:
                     raise ValueError("Only m=2 and m=3 are supported for now.")
-                TranformClass = {2: TransformOutput, 3: TransformOutput3}[m]
+                TranformClass = {2: TransformOutput, 3: TransformOutput3}[m_bob]
 
                 for transform in TranformClass:  # We pick bob's deterministic transformation from the degraded state to the final output
                     # Compute the output probabilities for the current configuration
-                    distribution = np.zeros(2 * delta**2 * m**2, dtype=float)
+                    distribution = np.zeros(2 * delta**2 * m_alice * m_bob, dtype=float)
 
                     # Compute the short-path distribution
                     # logger.debug("Computing short-path distribution")
@@ -390,8 +405,8 @@ def generate_all_extremal_points(
                         (i, j, k, l)
                         for i in range(delta)
                         for j in range(delta)
-                        for k in range(m)
-                        for l in range(m)
+                        for k in range(m_alice)
+                        for l in range(m_bob)
                     ]:
                         distribution[
                             routed_indices_to_index(
@@ -400,8 +415,6 @@ def generate_all_extremal_points(
                                 x,
                                 y,
                                 0,
-                                delta=delta,
-                                m=m,
                             )
                         ] = np.dot(np.kron(alice[x][a], bob_short[y][b]), state.value.arr)
 
@@ -411,8 +424,8 @@ def generate_all_extremal_points(
                         (i, j, k, l)
                         for i in range(delta)
                         for j in range(delta)
-                        for k in range(m)
-                        for l in range(m)
+                        for k in range(m_alice)
+                        for l in range(m_bob)
                     ]:
                         for b_prime in range(delta):
                             distribution[
@@ -422,22 +435,20 @@ def generate_all_extremal_points(
                                     x,
                                     y,
                                     1,
-                                    delta=delta,
-                                    m=m,
                                 )
                             ] += (
-                                np.dot(np.kron(alice[x][a], bob_long[b_prime]), state.value.arr) / 2
+                                np.dot(np.kron(alice[x][a], bob_long[b_prime]), state.value.arr) / 4
                             )  # we divide by two because somehow long-path final results sum to two and usually require renormalization, i'm not quite sure why # TODO : check the logic of long-path distribution computation
 
                     # Check normalization on the short-path
                     # it should already be normalized
                     normalized = True
-                    for x, y in [(i, j) for i in range(m) for j in range(m)]:
+                    for x, y in [(i, j) for i in range(m_alice) for j in range(m_bob)]:
                         total = np.sum(
                             [
                                 distribution[i]
                                 for i in [
-                                    routed_indices_to_index(_a, _b, x, y, 0, delta=delta, m=m)
+                                    routed_indices_to_index(_a, _b, x, y, 0)
                                     for _a in range(delta)
                                     for _b in range(delta)
                                 ]
@@ -448,12 +459,12 @@ def generate_all_extremal_points(
                             normalized = False
 
                     # Normalize the long-path
-                    for x, y in [(i, j) for i in range(m) for j in range(m)]:
+                    for x, y in [(i, j) for i in range(m_alice) for j in range(m_bob)]:
                         total = np.sum(
                             [
                                 distribution[i]
                                 for i in [
-                                    routed_indices_to_index(_a, _b, x, y, 1, delta=delta, m=m)
+                                    routed_indices_to_index(_a, _b, x, y, 1)
                                     for _a in range(delta)
                                     for _b in range(delta)
                                 ]
@@ -464,7 +475,7 @@ def generate_all_extremal_points(
                                 logger.debug(f"Normalizing long-path distribution: {total} != 1")
                                 # Normalize the long-path distribution
                                 for i in [
-                                    routed_indices_to_index(_a, _b, x, y, 1, delta=delta, m=m)
+                                    routed_indices_to_index(_a, _b, x, y, 1)
                                     for _a in range(delta)
                                     for _b in range(delta)
                                 ]:
@@ -476,10 +487,11 @@ def generate_all_extremal_points(
                     # Flatten the distribution to a 1D array
                     distribution = distribution.flatten()
 
-                    # Instead of checking for duplicates, generate all symmetries and add them
-                    computed_distributions.extend(generate_distribution_symmetries(distribution))
                     if not normalized:
                         raise ValueError("Distribution is not normalized.")
+
+                    # Instead of checking for duplicates, generate all symmetries and add them
+                    computed_distributions.extend(generate_distribution_symmetries(distribution))
 
     return computed_distributions
 
@@ -489,11 +501,13 @@ if __name__ == "__main__":
     exp_file = f"boxworld_extremals_{exp_name}.txt"
 
     for i in range(24):
+        # Generate all extremal points of the routed Bell experiment boxworld strategies
+        extremal_points = generate_all_extremal_points(
+            delta=2, m_alice=2, m_bob=3, idx_range=(i, i)
+        )
+
         # Write the extremal points to a file
         with open(exp_file, "a") as f:
-            # Generate all extremal points of the routed Bell experiment boxworld strategies
-            extremal_points = generate_all_extremal_points(delta=2, m=3, idx_range=(i, i))
-
             for point in extremal_points:
                 f.write(f"{point.tolist()}\n".replace("[", "").replace("]", "").replace(" ", ""))
                 # IMPORTANT : it is okay to write duplicate points. We deduplicate before running the CDD solver.
@@ -502,8 +516,25 @@ if __name__ == "__main__":
     # Solve the boxworld polytope using the CDD solver
     from solve_full_polytope import PolytopeTypes, PolytopeWrapper, RepTypes
 
-    vertices = np.loadtxt(exp_file, delimiter=",")
-    logger.info(f"Loaded {len(vertices)} vertices from boxworld_extremals.txt")
+    # Load the vertices from the file
+    seen = set()  # To deduplicate points
+    vertices = []  # To store the vertices
+    with open(exp_file, "r") as f:
+        # Load the vertices from the file
+        logger.info(f"Loading vertices from {exp_file}...")
+        while True:
+            line = f.readline()
+            if not line:
+                break
+            # Convert the line to a numpy array and deduplicate
+            point = np.array([float(x) for x in line.strip().split(",")])
+            if point.tobytes() not in seen:
+                seen.add(point.tobytes())
+                vertices.append(point)
+    # Convert the list of vertices to a numpy array
+    vertices = np.array(vertices)
+    # vertices = np.loadtxt(exp_file, delimiter=",")
+    logger.info(f"Loaded {len(vertices)} unique vertices from boxworld_extremals.txt")
 
     v_representation = np.hstack(
         [
@@ -514,15 +545,14 @@ if __name__ == "__main__":
         ]
     )
 
-    logger.info(f"Vertices shape (before deduplication): {v_representation.shape}")
-    # Deduplicate vertices
-    v_representation_unique = np.unique(v_representation, axis=0)
-    print(f"Vertices shape (deduped): {v_representation_unique.shape}")
-    print(v_representation_unique[:, 0])  # Print first 5 vertices for debugging
+    # # Deduplicate vertices
+    # v_representation_unique = np.unique(v_representation, axis=0)
+    # print(f"Vertices shape (deduped): {v_representation_unique.shape}")
+    # print(v_representation_unique[:, 0])  # Print first 5 vertices for debugging
 
     logger.info("Starting to solve the boxworld polytope...")
     solver = PolytopeWrapper(
-        source_array=v_representation_unique,
+        source_array=v_representation,
         rep_type=RepTypes.GENERATOR,
         lin_set=None,
     )
