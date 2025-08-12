@@ -612,53 +612,78 @@ class DummyText:
         return DummyText(f"{str(other)} + {self.text}")
 
 
-symbolic_equation = np.array(
-    [DummyText("cst")]  # Constant term
-    + [
-        DummyText("p({}{}|{}{}{})".format(a, b, x, y, z))
-        for z in "01"
-        for a in "01"
-        for b in "01"
-        for x in "01"
-        for y in "01"
-    ],
-    dtype=DummyText,
-)
+def get_symbolic_equation(
+    n_inputs_alice: int, n_inputs_bob: int, n_outputs: int, routed: bool = True
+) -> np.ndarray:
+    """
+    Generate the symbolic equation coefficients for the given number parameters.
+
+    :param n_inputs_alice: Number of inputs for Alice.
+    :param n_inputs_bob: Number of inputs for Bob.
+    :param n_outputs: Number of outputs.
+    :param routed: Whether to use routed indices or not.
+    :return: A FullDimEquation representing the symbolic equation.
+    """
+    # Create the symbolic equation coefficients
+    if routed:
+        coefficients = np.array(
+            [DummyText("cst")]
+            + [
+                DummyText(f"p({a}{b}|{x}{y}{z})")
+                for z in range(n_outputs)
+                for a in range(n_outputs)
+                for b in range(n_outputs)
+                for x in range(n_inputs_alice)
+                for y in range(n_inputs_bob)
+            ],
+            dtype=DummyText,
+        )
+    else:
+        coefficients = np.array(
+            [DummyText("cst")]
+            + [
+                DummyText(f"p({a}{b}|{x}{y})")
+                for a in range(n_outputs)
+                for b in range(n_outputs)
+                for x in range(n_inputs_alice)
+                for y in range(n_inputs_bob)
+            ],
+            dtype=DummyText,
+        )
+
+    return coefficients
 
 
 if __name__ == "__main__":
-    equation_file = "output/measured_h_representation_inequality_boxworld_polytope.csv"
+    equation_file = "output/equality_local_polytope_(2, 3, 2).csv"
+    inequality_file = "output/inequality_local_polytope_(2, 3, 2).csv"
+
+    n_inputs_alice = 2
+    n_inputs_bob = 3
+    n_outputs = 2
+    routed = False
 
     with open(equation_file, "r") as f:
         # Read the coefficients from the file
         equations_list = np.loadtxt(f, delimiter=",", skiprows=1)
     equations = [FullDimEquation(coefficients) for coefficients in equations_list]
 
-    translator = BinaryTranslator()
-    # for eq in equations:
-    #     correlator = translator.to_correlator(eq)
-    #     print(f"Correlator: {correlator}")
+    with open(inequality_file, "r") as f:
+        # Read the inequalities from the file
+        inequalities_list = np.loadtxt(f, delimiter=",", skiprows=1)
+    inequalities = [FullDimEquation(coefficients) for coefficients in inequalities_list]
 
     # Example of using the translator with symbolic equations
-    symbolic_eq = FullDimEquation(symbolic_equation)
-    # print(f"Symbolic equation: {symbolic_eq.coefficients}")
-    correlator = translator.to_correlator(symbolic_eq)
-    # print(f"Symbolic correlator: {str(correlator).replace("+ -", "- ")}")
+    symbolic_equation = get_symbolic_equation(
+        n_inputs_alice=n_inputs_alice,
+        n_inputs_bob=n_inputs_bob,
+        n_outputs=n_outputs,
+        routed=routed,
+    )
 
-    cur = -1
-    for line in correlator:
-        line = str(line).replace("+ -", "- ")
-        if cur < 0:
-            print("Constant term: ", line)
-        elif cur < 2:
-            print("<A_x>      = ", line)
-        elif cur < 6:
-            print("<B_yz>     = ", line)
-        else:
-            print("<A_x B_yz> = ", line)
-        cur += 1
-    print(f"Total correlator size: {len(correlator)}")
-
-    # Let us take an equation and see how it applies to the coordinates
+    print("Eq.")
     for i, eq in enumerate(equations):
-        print(f"Ineq {i+1:2}: {np.dot(eq.coefficients, symbolic_equation)}")
+        print(f"{i+1:2}: {np.dot(eq.coefficients, symbolic_equation)}")
+    print("Ineq.")
+    for i, ineq in enumerate(inequalities):
+        print(f"{i+1:2}: {np.dot(ineq.coefficients, symbolic_equation)}")
