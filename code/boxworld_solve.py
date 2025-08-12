@@ -28,12 +28,12 @@ Germany```
 
 from enum import Enum
 from time import time
-from tqdm import tqdm
 from typing import Union
 
 import numpy as np
 from behaviors import routed_indices_to_index, short_range_indices_to_index
 from loguru import logger
+from tqdm import tqdm
 
 
 class ArrayWrapper:
@@ -246,8 +246,6 @@ def generate_all_extremal_points() -> list[np.ndarray]:
     """
 
     computed_distributions = []  # This will hold all computed effects
-    computed_total = 0
-    start_time = time()
 
     for state in tqdm(BoxworldBipartiteVertex):
         # logger.info(f"Processing state: {state.value.arr}")

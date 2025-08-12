@@ -259,6 +259,8 @@ class RoutedBehavior(Behavior):
 
         :param delta: The number of possible outputs for Alice and Bob
         :param m: The number of possible inputs for Alice and Bob
+        :param vector: The behavior vector, if already known.
+        Given in vector indexing, flattened (z,a,b,x,y).
         """
         super().__init__(delta, m, vector)
 
