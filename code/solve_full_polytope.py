@@ -84,11 +84,7 @@ class OutputFormatter:
         """
         Get the output file path based on the output type and files_id.
         """
-        filename = (
-            f"{output_type.value}_{self.files_id}.txt"
-            if self.files_id
-            else f"{output_type.value}.txt"
-        )
+        filename = f"{self.files_id}.txt" if self.files_id else f"{output_type.value}.txt"
         return self.output_dir / filename
 
     def _get_csv_path(self, output_type: OutputTypes) -> list[Path]:
@@ -98,12 +94,12 @@ class OutputFormatter:
         if output_type == OutputTypes.MEASURED_H_REPRESENTATION:
             # For H-representation, we distinguish between equality and inequality
             eq_filename = (
-                f"{output_type.value}_equality_{self.files_id}.csv"
+                f"equality_{self.files_id}.csv"
                 if self.files_id
                 else f"{output_type.value}_equality.csv"
             )
             ineq_filename = (
-                f"{output_type.value}_inequality_{self.files_id}.csv"
+                f"inequality_{self.files_id}.csv"
                 if self.files_id
                 else f"{output_type.value}_inequality.csv"
             )
