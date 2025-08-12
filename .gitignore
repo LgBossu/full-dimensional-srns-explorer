@@ -9,4 +9,4 @@ docs/
 code_legacy/
 output/legacy/
 
-boxworld_extremals_m3_experiment.txt
+boxworld_extremals_*.txt
