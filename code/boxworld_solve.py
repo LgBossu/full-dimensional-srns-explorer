@@ -304,40 +304,37 @@ complements = {
 }
 
 
-def get_complement_effect(effect: BoxworldEffect) -> BoxworldEffect:
-    """
-    Get the complement effect of a given boxworld effect, to properly define binary measurements.
-
-    We define the complement effect such (1/2)*(e + e') = u, where u is the unit effect.
-
-    We actually just have u~u, e1~e3, e2~e4.
-    """
-    return complements[effect]
-
-
 def generate_all_extremal_points(
     delta: int = 2,
     m_alice: int = 2,
-    m_bob: int = 2,
+    m_bob_short: int = 2,
+    m_bob_long: int = 2,
     idx_range: tuple[int, int] = (0, 23),
 ) -> list[np.ndarray]:
     """
     Generate all extremal points of the routed Bell experiment boxworld strategies.
+    Parameters prefixed `m` are the numbers of inputs for respectively Alice, Bob short and Bob long channels.
     """
 
     def generate_distribution_symmetries(distribution: np.ndarray) -> list[np.ndarray]:
         """
         Generate all relabelings (symmetries) of a distribution by permuting Alice/Bob inputs x and y.
         Returns all unique permutations as flattened arrays.
+
+        :param distribution: The SHORT-PATH distribution to generate symmetries for.
+        Long-path distributions are not required to be symmetrized, as iterating over all
+        deterministic transformations already covers all possible symmetries.
         """
-        shaped = distribution.reshape((2, delta, delta, m_alice, m_bob))  # (z,a,b,x,y)
+        shaped = distribution.reshape(
+            (delta, delta, m_alice, m_bob_short)
+        )  # (a,b,x,y), z is zero since we're running on the short-range distribution
         symmetries: list[np.ndarray] = []
         x_perms = list(itertools.permutations(range(m_alice)))
-        y_perms = list(itertools.permutations(range(m_bob)))
+        y_perms = list(itertools.permutations(range(m_bob_short)))
         for x_perm in x_perms:
             for y_perm in y_perms:
                 # Permute x and y axes
-                permuted = shaped[:, :, :, x_perm, :][:, :, :, :, y_perm]
+                permuted = shaped[:, :, x_perm, :][:, :, :, y_perm]
                 symmetries.append(permuted.flatten())
         # Optionally, remove duplicates
         unique = []
@@ -353,13 +350,22 @@ def generate_all_extremal_points(
         """
         In the routed setting, convert a set of indices to the corresponding 1-D index
         """
-        return (
-            (z * (delta**2 * m_alice * m_bob))
-            + (a * (delta * m_alice * m_bob))
-            + (b * (m_alice * m_bob))
-            + (x * m_alice)
-            + y
-        )
+        if z == 0:
+            return (
+                (z * (delta**2 * m_alice * m_bob_short))
+                + (a * (delta * m_alice * m_bob_short))
+                + (b * (m_alice * m_bob_short))
+                + (x * m_alice)
+                + y
+            )
+        elif z == 1:
+            return (
+                (z * (delta**2 * m_alice * m_bob_long))
+                + (a * (delta * m_alice * m_bob_long))
+                + (b * (m_alice * m_bob_long))
+                + (x * m_alice)
+                + y
+            )
 
     computed_distributions = []  # This will hold all computed effects
 
@@ -371,7 +377,9 @@ def generate_all_extremal_points(
         from itertools import combinations_with_replacement
 
         canonical_measurements_alice = list(combinations_with_replacement(BoxworldEffect, m_alice))
-        canonical_measurements_bob = list(combinations_with_replacement(BoxworldEffect, m_bob))
+        canonical_measurements_bob = list(
+            combinations_with_replacement(BoxworldEffect, m_bob_short)
+        )
 
         for alice_tuple, bob_short_tuple in tqdm(
             [(i, j) for i in canonical_measurements_alice for j in canonical_measurements_bob]
@@ -382,7 +390,7 @@ def generate_all_extremal_points(
             ]
             bob_short = [
                 [bob_short_tuple[i].value.arr, complements[bob_short_tuple[i]].value.arr]
-                for i in range(m_bob)
+                for i in range(m_bob_short)
             ]
 
             for bob_long_measurement in BoxworldEffect:
@@ -391,13 +399,14 @@ def generate_all_extremal_points(
                     complements[bob_long_measurement].value.arr,
                 ]
 
-                if m_bob not in [2, 3]:
+                if m_bob_long not in [2, 3]:
                     raise ValueError("Only m=2 and m=3 are supported for now.")
-                TranformClass = {2: TransformOutput, 3: TransformOutput3}[m_bob]
+                TranformClass = {2: TransformOutput, 3: TransformOutput3}[m_bob_long]
 
                 for transform in TranformClass:  # We pick bob's deterministic transformation from the degraded state to the final output
                     # Compute the output probabilities for the current configuration
-                    distribution = np.zeros(2 * delta**2 * m_alice * m_bob, dtype=float)
+                    distrib_short = np.zeros(delta**2 * m_alice * m_bob_short, dtype=float)
+                    distrib_long = np.zeros(delta**2 * m_alice * m_bob_long, dtype=float)
 
                     # Compute the short-path distribution
                     # logger.debug("Computing short-path distribution")
@@ -406,15 +415,15 @@ def generate_all_extremal_points(
                         for i in range(delta)
                         for j in range(delta)
                         for k in range(m_alice)
-                        for l in range(m_bob)
+                        for l in range(m_bob_short)
                     ]:
-                        distribution[
+                        distrib_short[
                             routed_indices_to_index(
                                 a,
                                 b,
                                 x,
                                 y,
-                                0,
+                                0,  # 0 for short-path
                             )
                         ] = np.dot(np.kron(alice[x][a], bob_short[y][b]), state.value.arr)
 
@@ -425,28 +434,28 @@ def generate_all_extremal_points(
                         for i in range(delta)
                         for j in range(delta)
                         for k in range(m_alice)
-                        for l in range(m_bob)
+                        for l in range(m_bob_long)
                     ]:
                         for b_prime in range(delta):
-                            distribution[
+                            distrib_long[
                                 routed_indices_to_index(
                                     a,
                                     transform.value.arr[b_prime, y],
                                     x,
                                     y,
-                                    1,
+                                    1,  # 1 for long-path
                                 )
-                            ] += (
-                                np.dot(np.kron(alice[x][a], bob_long[b_prime]), state.value.arr) / 4
+                            ] += np.dot(
+                                np.kron(alice[x][a], bob_long[b_prime]), state.value.arr
                             )  # we divide by two because somehow long-path final results sum to two and usually require renormalization, i'm not quite sure why # TODO : check the logic of long-path distribution computation
 
                     # Check normalization on the short-path
                     # it should already be normalized
                     normalized = True
-                    for x, y in [(i, j) for i in range(m_alice) for j in range(m_bob)]:
+                    for x, y in [(i, j) for i in range(m_alice) for j in range(m_bob_short)]:
                         total = np.sum(
                             [
-                                distribution[i]
+                                distrib_short[i]
                                 for i in [
                                     routed_indices_to_index(_a, _b, x, y, 0)
                                     for _a in range(delta)
@@ -459,10 +468,10 @@ def generate_all_extremal_points(
                             normalized = False
 
                     # Normalize the long-path
-                    for x, y in [(i, j) for i in range(m_alice) for j in range(m_bob)]:
+                    for x, y in [(i, j) for i in range(m_alice) for j in range(m_bob_long)]:
                         total = np.sum(
                             [
-                                distribution[i]
+                                distrib_long[i]
                                 for i in [
                                     routed_indices_to_index(_a, _b, x, y, 1)
                                     for _a in range(delta)
@@ -472,26 +481,33 @@ def generate_all_extremal_points(
                         )
                         if total > 0:
                             if total != 1:
-                                logger.debug(f"Normalizing long-path distribution: {total} != 1")
+                                logger.trace(f"Normalizing long-path distribution: {total} != 1")
                                 # Normalize the long-path distribution
                                 for i in [
                                     routed_indices_to_index(_a, _b, x, y, 1)
                                     for _a in range(delta)
                                     for _b in range(delta)
                                 ]:
-                                    distribution[i] /= total
+                                    distrib_long[i] /= total
                         else:
                             logger.error(f"Long-path distribution not normalized: {total} <= 0")
                             normalized = False
 
-                    # Flatten the distribution to a 1D array
-                    distribution = distribution.flatten()
-
                     if not normalized:
                         raise ValueError("Distribution is not normalized.")
 
+                    distrib_long = distrib_long.flatten()
+                    distrib_short = distrib_short.flatten()
+
                     # Instead of checking for duplicates, generate all symmetries and add them
-                    computed_distributions.extend(generate_distribution_symmetries(distribution))
+                    # We generate symmetries for the short-path distribution only,
+                    # as the long-path distribution is already generated by iterating over all
+                    # deterministic transformations.
+                    short_symmetries = generate_distribution_symmetries(distrib_short)
+
+                    computed_distributions.extend(
+                        [np.hstack([sym, distrib_long]) for sym in short_symmetries]
+                    )
 
     return computed_distributions
 
@@ -503,7 +519,7 @@ if __name__ == "__main__":
     for i in range(24):
         # Generate all extremal points of the routed Bell experiment boxworld strategies
         extremal_points = generate_all_extremal_points(
-            delta=2, m_alice=2, m_bob=3, idx_range=(i, i)
+            delta=2, m_alice=2, m_bob_short=2, m_bob_long=3, idx_range=(i, i)
         )
 
         # Write the extremal points to a file
