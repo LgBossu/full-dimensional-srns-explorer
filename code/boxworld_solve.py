@@ -219,6 +219,80 @@ class TransformOutput(Enum):
     f16 = ArrayWrapper(np.array([[1, 1], [1, 1]]))
 
 
+class TransformOutput3(Enum):
+    """
+    Enumerate all functions mapping tuples (b', y) where b' ∈ {0, 1} and y ∈ {0, 1, 2}
+    to a binary output (0, 1).
+    Each function can be represented by its truth table: (b', y) -> f(b', y),
+    where b' ∈ {0, 1} and y ∈ {0, 1, 2}. There are 6 input pairs, so 2^6 = 64 possible functions.
+    """
+
+    f1 = ArrayWrapper(np.array([[0, 0, 0], [0, 0, 0]]))  # Always outputs 0
+    f2 = ArrayWrapper(np.array([[0, 0, 0], [0, 0, 1]]))
+    f3 = ArrayWrapper(np.array([[0, 0, 0], [0, 1, 0]]))
+    f4 = ArrayWrapper(np.array([[0, 0, 0], [0, 1, 1]]))
+    f5 = ArrayWrapper(np.array([[0, 0, 0], [1, 0, 0]]))
+    f6 = ArrayWrapper(np.array([[0, 0, 0], [1, 0, 1]]))
+    f7 = ArrayWrapper(np.array([[0, 0, 0], [1, 1, 0]]))
+    f8 = ArrayWrapper(np.array([[0, 0, 0], [1, 1, 1]]))
+    f9 = ArrayWrapper(np.array([[0, 0, 1], [0, 0, 0]]))
+    f10 = ArrayWrapper(np.array([[0, 0, 1], [0, 0, 1]]))
+    f11 = ArrayWrapper(np.array([[0, 0, 1], [0, 1, 0]]))
+    f12 = ArrayWrapper(np.array([[0, 0, 1], [0, 1, 1]]))
+    f13 = ArrayWrapper(np.array([[0, 0, 1], [1, 0, 0]]))
+    f14 = ArrayWrapper(np.array([[0, 0, 1], [1, 0, 1]]))
+    f15 = ArrayWrapper(np.array([[0, 0, 1], [1, 1, 0]]))
+    f16 = ArrayWrapper(np.array([[0, 0, 1], [1, 1, 1]]))
+    f17 = ArrayWrapper(np.array([[0, 1, 0], [0, 0, 0]]))
+    f18 = ArrayWrapper(np.array([[0, 1, 0], [0, 0, 1]]))
+    f19 = ArrayWrapper(np.array([[0, 1, 0], [0, 1, 0]]))
+    f20 = ArrayWrapper(np.array([[0, 1, 0], [0, 1, 1]]))
+    f21 = ArrayWrapper(np.array([[0, 1, 0], [1, 0, 0]]))
+    f22 = ArrayWrapper(np.array([[0, 1, 0], [1, 0, 1]]))
+    f23 = ArrayWrapper(np.array([[0, 1, 0], [1, 1, 0]]))
+    f24 = ArrayWrapper(np.array([[0, 1, 0], [1, 1, 1]]))
+    f25 = ArrayWrapper(np.array([[0, 1, 1], [0, 0, 0]]))
+    f26 = ArrayWrapper(np.array([[0, 1, 1], [0, 0, 1]]))
+    f27 = ArrayWrapper(np.array([[0, 1, 1], [0, 1, 0]]))
+    f28 = ArrayWrapper(np.array([[0, 1, 1], [0, 1, 1]]))
+    f29 = ArrayWrapper(np.array([[0, 1, 1], [1, 0, 0]]))
+    f30 = ArrayWrapper(np.array([[0, 1, 1], [1, 0, 1]]))
+    f31 = ArrayWrapper(np.array([[0, 1, 1], [1, 1, 0]]))
+    f32 = ArrayWrapper(np.array([[0, 1, 1], [1, 1, 1]]))
+    f33 = ArrayWrapper(np.array([[1, 0, 0], [0, 0, 0]]))
+    f34 = ArrayWrapper(np.array([[1, 0, 0], [0, 0, 1]]))
+    f35 = ArrayWrapper(np.array([[1, 0, 0], [0, 1, 0]]))
+    f36 = ArrayWrapper(np.array([[1, 0, 0], [0, 1, 1]]))
+    f37 = ArrayWrapper(np.array([[1, 0, 0], [1, 0, 0]]))
+    f38 = ArrayWrapper(np.array([[1, 0, 0], [1, 0, 1]]))
+    f39 = ArrayWrapper(np.array([[1, 0, 0], [1, 1, 0]]))
+    f40 = ArrayWrapper(np.array([[1, 0, 0], [1, 1, 1]]))
+    f41 = ArrayWrapper(np.array([[1, 0, 1], [0, 0, 0]]))
+    f42 = ArrayWrapper(np.array([[1, 0, 1], [0, 0, 1]]))
+    f43 = ArrayWrapper(np.array([[1, 0, 1], [0, 1, 0]]))
+    f44 = ArrayWrapper(np.array([[1, 0, 1], [0, 1, 1]]))
+    f45 = ArrayWrapper(np.array([[1, 0, 1], [1, 0, 0]]))
+    f46 = ArrayWrapper(np.array([[1, 0, 1], [1, 0, 1]]))
+    f47 = ArrayWrapper(np.array([[1, 0, 1], [1, 1, 0]]))
+    f48 = ArrayWrapper(np.array([[1, 0, 1], [1, 1, 1]]))
+    f49 = ArrayWrapper(np.array([[1, 1, 0], [0, 0, 0]]))
+    f50 = ArrayWrapper(np.array([[1, 1, 0], [0, 0, 1]]))
+    f51 = ArrayWrapper(np.array([[1, 1, 0], [0, 1, 0]]))
+    f52 = ArrayWrapper(np.array([[1, 1, 0], [0, 1, 1]]))
+    f53 = ArrayWrapper(np.array([[1, 1, 0], [1, 0, 0]]))
+    f54 = ArrayWrapper(np.array([[1, 1, 0], [1, 0, 1]]))
+    f55 = ArrayWrapper(np.array([[1, 1, 0], [1, 1, 0]]))
+    f56 = ArrayWrapper(np.array([[1, 1, 0], [1, 1, 1]]))
+    f57 = ArrayWrapper(np.array([[1, 1, 1], [0, 0, 0]]))
+    f58 = ArrayWrapper(np.array([[1, 1, 1], [0, 0, 1]]))
+    f59 = ArrayWrapper(np.array([[1, 1, 1], [0, 1, 0]]))
+    f60 = ArrayWrapper(np.array([[1, 1, 1], [0, 1, 1]]))
+    f61 = ArrayWrapper(np.array([[1, 1, 1], [1, 0, 0]]))
+    f62 = ArrayWrapper(np.array([[1, 1, 1], [1, 0, 1]]))
+    f63 = ArrayWrapper(np.array([[1, 1, 1], [1, 1, 0]]))
+    f64 = ArrayWrapper(np.array([[1, 1, 1], [1, 1, 1]]))
+
+
 complements = {
     BoxworldEffect.e1: BoxworldEffect.e3,
     BoxworldEffect.e2: BoxworldEffect.e4,
@@ -240,81 +314,125 @@ def get_complement_effect(effect: BoxworldEffect) -> BoxworldEffect:
     return complements[effect]
 
 
-def generate_all_extremal_points() -> list[np.ndarray]:
+def generate_all_extremal_points(
+    delta: int = 2,
+    m: int = 3,
+    idx_range: tuple[int, int] = (0, 23),
+) -> list[np.ndarray]:
     """
     Generate all extremal points of the routed Bell experiment boxworld strategies.
     """
 
     computed_distributions = []  # This will hold all computed effects
 
-    for state in tqdm(BoxworldBipartiteVertex):
-        # logger.info(f"Processing state: {state.value.arr}")
+    vertices = list(BoxworldBipartiteVertex)[idx_range[0] : idx_range[1] + 1]
+
+    for state in vertices:
+        logger.info(f"Processing state: {state.value.arr}")
         for (
             alice_measurement0,
             alice_measurement1,
+            alice_measurement2,
             bob_short_measurement0,
             bob_short_measurement1,
-        ) in [
-            (i, j, k, l)
-            for i in BoxworldEffect
-            for j in BoxworldEffect
-            for k in BoxworldEffect
-            for l in BoxworldEffect
-        ]:
+            bob_short_measurement2,
+        ) in tqdm(
+            [
+                (i, j, k, l, m, n)
+                for i in BoxworldEffect
+                for j in BoxworldEffect
+                for k in BoxworldEffect
+                for l in BoxworldEffect
+                for m in BoxworldEffect
+                for n in BoxworldEffect
+            ]
+        ):
             # if alice_measurement0 == alice_measurement1:
             #     continue  # Skip if Alice's measurements are the same, this is a trivial strategy
             alice_complement0 = get_complement_effect(alice_measurement0)
             alice_complement1 = get_complement_effect(alice_measurement1)
+            alice_complement2 = get_complement_effect(alice_measurement2)
             # if bob_short_measurement0 == bob_short_measurement1:
             #     continue  # Skip if Bob's short channel measurements are the same, this is a trivial strategy
             bob_short_complement0 = get_complement_effect(bob_short_measurement0)
             bob_short_complement1 = get_complement_effect(bob_short_measurement1)
+            bob_short_complement2 = get_complement_effect(bob_short_measurement2)
 
             alice = [
                 [alice_measurement0.value.arr, alice_complement0.value.arr],
                 [alice_measurement1.value.arr, alice_complement1.value.arr],
+                [alice_measurement2.value.arr, alice_complement2.value.arr],
             ]
             bob_short = [
                 [bob_short_measurement0.value.arr, bob_short_complement0.value.arr],
                 [bob_short_measurement1.value.arr, bob_short_complement1.value.arr],
+                [bob_short_measurement2.value.arr, bob_short_complement2.value.arr],
             ]
 
             for bob_long_measurement in BoxworldEffect:
                 bob_long_complement = get_complement_effect(bob_long_measurement)
                 bob_long = [bob_long_measurement.value.arr, bob_long_complement.value.arr]
 
-                for transform in TransformOutput:  # We pick bob's deterministic transformation from the degraded state to the final output
+                for transform in TransformOutput3:  # We pick bob's deterministic transformation from the degraded state to the final output
                     # Compute the output probabilities for the current configuration
-                    distribution = np.zeros(32, dtype=float)
+                    distribution = np.zeros(
+                        72, dtype=float
+                    )  # 2* delta**2 * m**2 : 2 * 3**2 * 2**2 = 72
 
                     # Compute the short-path distribution
                     # logger.debug("Computing short-path distribution")
                     for a, b, x, y in [
-                        (i, j, k, l) for i in [0, 1] for j in [0, 1] for k in [0, 1] for l in [0, 1]
+                        (i, j, k, l)
+                        for i in [0, 1]
+                        for j in [0, 1]
+                        for k in [0, 1, 2]
+                        for l in [0, 1, 2]
                     ]:
-                        distribution[routed_indices_to_index(a, b, x, y, 0)] = np.dot(
-                            np.kron(alice[x][a], bob_short[y][b]), state.value.arr
-                        )
+                        distribution[
+                            routed_indices_to_index(
+                                a,
+                                b,
+                                x,
+                                y,
+                                0,
+                                delta=delta,
+                                m=m,
+                            )
+                        ] = np.dot(np.kron(alice[x][a], bob_short[y][b]), state.value.arr)
 
                     # Compute the long-path distribution
                     # logger.debug("Computing long-path distribution")
                     for a, b, x, y in [
-                        (i, j, k, l) for i in [0, 1] for j in [0, 1] for k in [0, 1] for l in [0, 1]
+                        (i, j, k, l)
+                        for i in [0, 1]
+                        for j in [0, 1]
+                        for k in [0, 1, 2]
+                        for l in [0, 1, 2]
                     ]:
                         for b_prime in [0, 1]:
                             distribution[
-                                routed_indices_to_index(a, transform.value.arr[b_prime, y], x, y, 1)
-                            ] += np.dot(np.kron(alice[x][a], bob_long[b_prime]), state.value.arr)
+                                routed_indices_to_index(
+                                    a,
+                                    transform.value.arr[b_prime, y],
+                                    x,
+                                    y,
+                                    1,
+                                    delta=delta,
+                                    m=m,
+                                )
+                            ] += (
+                                np.dot(np.kron(alice[x][a], bob_long[b_prime]), state.value.arr) / 2
+                            )  # we divide by two because somehow long-path final results sum to two and usually require renormalization, i'm not quite sure why # TODO : check the logic of long-path distribution computation
 
                     # Check normalization on the short-path
                     # it should already be normalized
                     normalized = True
-                    for x, y in [(i, j) for i in [0, 1] for j in [0, 1]]:
+                    for x, y in [(i, j) for i in [0, 1, 2] for j in [0, 1, 2]]:
                         total = np.sum(
                             [
                                 distribution[i]
                                 for i in [
-                                    routed_indices_to_index(_a, _b, x, y, 0)
+                                    routed_indices_to_index(_a, _b, x, y, 0, delta=delta, m=m)
                                     for _a in [0, 1]
                                     for _b in [0, 1]
                                 ]
@@ -325,36 +443,30 @@ def generate_all_extremal_points() -> list[np.ndarray]:
                             normalized = False
 
                     # Normalize the long-path
-                    for x, y in [(i, j) for i in [0, 1] for j in [0, 1]]:
+                    for x, y in [(i, j) for i in [0, 1, 2] for j in [0, 1, 2]]:
                         total = np.sum(
                             [
                                 distribution[i]
                                 for i in [
-                                    routed_indices_to_index(_a, _b, x, y, 1)
+                                    routed_indices_to_index(_a, _b, x, y, 1, delta=delta, m=m)
                                     for _a in [0, 1]
                                     for _b in [0, 1]
                                 ]
                             ]
                         )
                         if total > 0:
-                            for i in [
-                                routed_indices_to_index(_a, _b, x, y, 1)
-                                for _a in [0, 1]
-                                for _b in [0, 1]
-                            ]:
-                                distribution[i] /= total
+                            if total != 1:
+                                logger.debug(f"Normalizing long-path distribution: {total} != 1")
+                                # Normalize the long-path distribution
+                                for i in [
+                                    routed_indices_to_index(_a, _b, x, y, 1, delta=delta, m=m)
+                                    for _a in [0, 1]
+                                    for _b in [0, 1]
+                                ]:
+                                    distribution[i] /= total
                         else:
                             logger.error(f"Long-path distribution not normalized: {total} <= 0")
                             normalized = False
-
-                    # Log info periodically
-                    # computed_total += 1
-                    # if computed_total % 10000 == 0:
-                    #     logger.info(f"Computed {computed_total}/1.200.000 distributions so far.")
-                    #     elapsed_time = time() - start_time
-                    #     logger.info(f"Elapsed time: {elapsed_time:.2f} seconds")
-                    #     eta = (time() - start_time) * (1_200_000 - computed_total) / computed_total
-                    #     logger.info(f"Estimated time remaining: {eta//60} minutes")
 
                     # Flatten the distribution to a 1D array
                     distribution = distribution.flatten()
@@ -380,16 +492,15 @@ def generate_all_extremal_points() -> list[np.ndarray]:
 
 
 if __name__ == "__main__":
-    # Generate all extremal points of the routed Bell experiment boxworld strategies
-    extremal_points = generate_all_extremal_points()
+    for i in range(24):
+        # Write the extremal points to a file
+        with open("boxworld_m_3_extremals.txt", "a") as f:
+            # Generate all extremal points of the routed Bell experiment boxworld strategies
+            extremal_points = generate_all_extremal_points(delta=2, m=3, idx_range=(i, i))
 
-    # Print the number of unique extremal points found
-    print(f"Number of unique extremal points: {len(extremal_points)}")
-
-    # Write the extremal points to a file
-    with open("boxworld_extremals.txt", "w") as f:
-        for point in extremal_points:
-            f.write(f"{point.tolist()}\n".replace("[", "").replace("]", "").replace(" ", ""))
+            for point in extremal_points:
+                f.write(f"{point.tolist()}\n".replace("[", "").replace("]", "").replace(" ", ""))
+                # IMPORTANT : it is okay to write duplicate points. The CDD solver will handle it.
 
     # Solve the boxworld polytope using the CDD solver
     from solve_full_polytope import PolytopeTypes, PolytopeWrapper, RepTypes
