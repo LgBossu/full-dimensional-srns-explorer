@@ -516,87 +516,87 @@ def generate_all_extremal_points(
     return computed_distributions
 
 
-def generate_symmetries_binary(
-    n_inputs_alice: int,
-    n_inputs_bob_short: int,
-    n_inputs_bob_long: int,
-) -> List[np.ndarray]:
-    """
-    AI GENERATED CODE
+# def generate_symmetries_binary(
+#     n_inputs_alice: int,
+#     n_inputs_bob_short: int,
+#     n_inputs_bob_long: int,
+# ) -> List[np.ndarray]:
+#     """
+#     AI GENERATED CODE
 
-    Symmetry index arrays for (a,b,x,y)-flattened probability vectors with binary outputs.
-    - Permute Alice inputs S_{nA}
-    - Permute Bob-short inputs S_{nB_short}
-    - Bob-long inputs: identity (see reasoning)
-    - Output flips: per-input, i.e., a -> a XOR f_A(x), b -> b XOR f_B(y)
-      with f_A in {0,1}^{nA}, f_B in {0,1}^{nB_short} (and no flips on long branch)
-    """
-    nA = n_inputs_alice
-    nBs = n_inputs_bob_short
-    nBl = n_inputs_bob_long
-    nO = 2  # binary
+#     Symmetry index arrays for (a,b,x,y)-flattened probability vectors with binary outputs.
+#     - Permute Alice inputs S_{nA}
+#     - Permute Bob-short inputs S_{nB_short}
+#     - Bob-long inputs: identity (see reasoning)
+#     - Output flips: per-input, i.e., a -> a XOR f_A(x), b -> b XOR f_B(y)
+#       with f_A in {0,1}^{nA}, f_B in {0,1}^{nB_short} (and no flips on long branch)
+#     """
+#     nA = n_inputs_alice
+#     nBs = n_inputs_bob_short
+#     nBl = n_inputs_bob_long
+#     nO = 2  # binary
 
-    # Total length (a,b,x,y) short + long
-    size_short = nO * nO * nA * nBs
-    size_long = nO * nO * nA * nBl
-    total_size = size_short + size_long
+#     # Total length (a,b,x,y) short + long
+#     size_short = nO * nO * nA * nBs
+#     size_long = nO * nO * nA * nBl
+#     total_size = size_short + size_long
 
-    # Base indices
-    id_short = np.arange(size_short).reshape(nO, nO, nA, nBs)
-    id_long = (np.arange(size_long) + size_short).reshape(nO, nO, nA, nBl)
+#     # Base indices
+#     id_short = np.arange(size_short).reshape(nO, nO, nA, nBs)
+#     id_long = (np.arange(size_long) + size_short).reshape(nO, nO, nA, nBl)
 
-    syms = []
-    seen = set()
+#     syms = []
+#     seen = set()
 
-    # Input permutations
-    A_permutes = list(itertools.permutations(range(nA)))  # S_{nA}
-    Bs_permutes = list(itertools.permutations(range(nBs)))  # S_{nB_short}
-    Bl_permutes = [tuple(range(nBl))]  # identity only
+#     # Input permutations
+#     A_permutes = list(itertools.permutations(range(nA)))  # S_{nA}
+#     Bs_permutes = list(itertools.permutations(range(nBs)))  # S_{nB_short}
+#     Bl_permutes = [tuple(range(nBl))]  # identity only
 
-    # Per-input output flips (bitmasks of length nA or nBs)
-    # For Alice: fA[x] in {0,1}; for Bob-short: fB[y] in {0,1}
-    for ap in A_permutes:
-        for bsp in Bs_permutes:
-            blp = Bl_permutes[0]
+#     # Per-input output flips (bitmasks of length nA or nBs)
+#     # For Alice: fA[x] in {0,1}; for Bob-short: fB[y] in {0,1}
+#     for ap in A_permutes:
+#         for bsp in Bs_permutes:
+#             blp = Bl_permutes[0]
 
-            # all flip patterns
-            for fA_bits in itertools.product([0, 1], repeat=nA):
-                fA = np.array(fA_bits, dtype=int)
-                for fB_bits in itertools.product([0, 1], repeat=nBs):
-                    fB = np.array(fB_bits, dtype=int)
+#             # all flip patterns
+#             for fA_bits in itertools.product([0, 1], repeat=nA):
+#                 fA = np.array(fA_bits, dtype=int)
+#                 for fB_bits in itertools.product([0, 1], repeat=nBs):
+#                     fB = np.array(fB_bits, dtype=int)
 
-                    # SHORT branch mapping
-                    # idx'(a,b,x,y) = idx(a^fA[x], b^fB[y], ap[x], bsp[y])
-                    a_src = np.arange(nO)[:, None, None, None]
-                    b_src = np.arange(nO)[None, :, None, None]
-                    x_src = np.arange(nA)[None, None, :, None]
-                    y_src = np.arange(nBs)[None, None, None, :]
+#                     # SHORT branch mapping
+#                     # idx'(a,b,x,y) = idx(a^fA[x], b^fB[y], ap[x], bsp[y])
+#                     a_src = np.arange(nO)[:, None, None, None]
+#                     b_src = np.arange(nO)[None, :, None, None]
+#                     x_src = np.arange(nA)[None, None, :, None]
+#                     y_src = np.arange(nBs)[None, None, None, :]
 
-                    a_map = a_src ^ fA[x_src]  # per-input XOR
-                    b_map = b_src ^ fB[y_src]
-                    x_map = np.take(ap, x_src)
-                    y_map = np.take(bsp, y_src)
+#                     a_map = a_src ^ fA[x_src]  # per-input XOR
+#                     b_map = b_src ^ fB[y_src]
+#                     x_map = np.take(ap, x_src)
+#                     y_map = np.take(bsp, y_src)
 
-                    idx_short = id_short[a_map, b_map, x_map, y_map].ravel()
+#                     idx_short = id_short[a_map, b_map, x_map, y_map].ravel()
 
-                    # LONG branch mapping (no b-output flips per long y; no y-permutation)
-                    # we still allow Alice per-input flips (same fA) and input perm ap
-                    yL_src = np.arange(nBl)[None, None, None, :]
-                    idx_long = id_long[
-                        a_map[:, :, :, : yL_src.shape[3]],
-                        b_src[:, :, :, : yL_src.shape[3]],  # no flip on long
-                        x_map[:, :, :, : yL_src.shape[3]],
-                        yL_src,
-                    ].ravel()
+#                     # LONG branch mapping (no b-output flips per long y; no y-permutation)
+#                     # we still allow Alice per-input flips (same fA) and input perm ap
+#                     yL_src = np.arange(nBl)[None, None, None, :]
+#                     idx_long = id_long[
+#                         a_map[:, :, :, : yL_src.shape[3]],
+#                         b_src[:, :, :, : yL_src.shape[3]],  # no flip on long
+#                         x_map[:, :, :, : yL_src.shape[3]],
+#                         yL_src,
+#                     ].ravel()
 
-                    perm = np.concatenate([idx_short, idx_long])
+#                     perm = np.concatenate([idx_short, idx_long])
 
-                    tb = perm.tobytes()
-                    if tb not in seen:
-                        seen.add(tb)
-                        syms.append(perm)
+#                     tb = perm.tobytes()
+#                     if tb not in seen:
+#                         seen.add(tb)
+#                         syms.append(perm)
 
-    return syms
+#     return syms
 
 
 def canonical_under(symmetries: List[np.ndarray], vec: np.ndarray) -> bytes:
@@ -628,49 +628,47 @@ if __name__ == "__main__":
     # Solve the boxworld polytope using the CDD solver
     from solve_full_polytope import PolytopeTypes, PolytopeWrapper, RepTypes
 
-    symmetries = generate_symmetries_binary(
-        n_inputs_alice=2,
-        n_inputs_bob_short=2,
-        n_inputs_bob_long=3,
-    )
-    logger.info(f"Generated {len(symmetries)} symmetries for the boxworld polytope.")
+    # symmetries = generate_symmetries_binary(
+    #     n_inputs_alice=2,
+    #     n_inputs_bob_short=2,
+    #     n_inputs_bob_long=3,
+    # )
+    # logger.info(f"Generated {len(symmetries)} symmetries for the boxworld polytope.")
 
-    seen = set()
-    vertices = []
-    with open(exp_file, "r") as f:
-        logger.info(f"Loading vertices from {exp_file}...")
-        for line in f:
-            point = np.fromstring(line, sep=",")
-            key = canonical_under(symmetries, point)
-            if key not in seen:
-                seen.add(key)
-                vertices.append(point)
-    logger.info(f"Loaded {len(seen)} non-equivalent points from {exp_file}.")
-    logger.info(
-        f"{len(symmetries)} symmetries * {len(seen)} unique points = {len(seen) * len(symmetries)} total points."
-    )
-
-    # # Load the vertices from the file
-    # seen = set()  # To deduplicate points
-    # vertices = []  # To store the vertices
-
+    # seen = set()
+    # vertices = []
     # with open(exp_file, "r") as f:
-    #     # Load the vertices from the file
     #     logger.info(f"Loading vertices from {exp_file}...")
-    #     while True:
-    #         line = f.readline()
-    #         if not line:
-    #             break
-
-    #         # Convert the line to a numpy array and deduplicate
-    #         point = np.array([float(x) for x in line.strip().split(",")])
-
-    #         # We try to deduplicate under the orbit of symmetries
-    #         if point.tobytes() not in seen:
-    #             # symmetrical_points = [point[symmetry] for symmetry in symmetries]
-    #             seen.add(point.tobytes())
+    #     for line in f:
+    #         point = np.fromstring(line, sep=",")
+    #         key = canonical_under(symmetries, point)
+    #         if key not in seen:
+    #             seen.add(key)
     #             vertices.append(point)
-    #             # TODO: should we decide on some kind of canonical representative?
+    # logger.info(f"Loaded {len(seen)} non-equivalent points from {exp_file}.")
+    # logger.info(
+    #     f"{len(symmetries)} symmetries * {len(seen)} unique points = {len(seen) * len(symmetries)} total points."
+    # )
+
+    # Load the vertices from the file
+    seen = set()  # To deduplicate points
+    vertices = []  # To store the vertices
+
+    with open(exp_file, "r") as f:
+        # Load the vertices from the file
+        logger.info(f"Loading vertices from {exp_file}...")
+        while True:
+            line = f.readline()
+            if not line:
+                break
+
+            # Convert the line to a numpy array and deduplicate
+            point = np.array([float(x) for x in line.strip().split(",")])
+
+            # We try to deduplicate under the orbit of symmetries
+            if point.tobytes() not in seen:
+                seen.add(point.tobytes())
+                vertices.append(point)
 
     # Convert the list of vertices to a numpy array
     vertices = np.array(vertices)
