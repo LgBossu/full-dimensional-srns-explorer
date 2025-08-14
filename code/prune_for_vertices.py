@@ -108,7 +108,7 @@ class PruneForVertices:
 
 
 if __name__ == "__main__":
-    file_name = "boxworld_extremals_mBobLong.txt"
+    file_name = "boxworld_extremals_sanitycheck.txt"
 
     vertices = []
     seen_vertices = set()
@@ -128,6 +128,6 @@ if __name__ == "__main__":
     logger.info(f"Vertex points: {len(vertex_indices)}")
     logger.info(f"Non-vertex points: {len(non_vertex_indices)}")
 
-    with open("pruned_vertices_mBobLong.txt", "w") as f:
+    with open("pruned_vertices_222.txt", "w") as f:
         for index in vertex_indices:
             f.write(",".join(map(str, pruner._points[index])) + "\n")
