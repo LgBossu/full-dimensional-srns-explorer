@@ -828,22 +828,39 @@ if __name__ == "__main__":
         delta=2, m_alice=2, m_bob_short=2, m_bob_long=2, idx_range=(0, 23)
     )
 
+    logger.info(f"Generated a total of {len(extremal_points)} extremal points.")
+
+    # Deduplicate the list of points
+    seen = set()
+    deduplicated: list[tuple[str, np.ndarray]] = []
+    for ep in extremal_points:
+        if ep[1].tobytes() not in seen:
+            seen.add(ep[1].tobytes())
+            deduplicated.append(ep)
+    extremal_points = deduplicated
+
+    logger.info(f"Deduplicated to {len(extremal_points)} unique extremal points.")
+
     # Prune to keep only vertices
     from prune_for_vertices import PruneForVertices
 
     pruner = PruneForVertices(points=[ep[1] for ep in extremal_points])
     vertex_indices, _, _ = pruner.prune()
 
-    vertices = [ep for i, ep in enumerate(extremal_points) if i in vertex_indices]
+    vertices_with_info: list[tuple[str, np.ndarray]] = [
+        ep for i, ep in enumerate(extremal_points) if i in vertex_indices
+    ]
     written = set()  # To deduplicate points
-    with open(exp_file, "w") as f:
-        for info, point in vertices:
+    with open(exp_file, "a") as f:
+        for info, point in vertices_with_info:
             if point.tobytes() in written:
                 continue
             written.add(point.tobytes())
             f.write(
                 f"{info};{str(point.tolist()).replace("[", "").replace("]", "").replace(" ", "")}\n"
             )
+
+    logger.info(f"Wrote {len(written)} unique vertices to {exp_file}")
 
     # # Write the extremal points to a file
     # with open(exp_file, "a") as f:
@@ -878,7 +895,7 @@ if __name__ == "__main__":
 
     # Load the vertices from the file
     seen = set()  # To deduplicate points
-    vertices = []  # To store the vertices
+    vertices_list: list[np.ndarray] = []  # To store the vertices
 
     with open(exp_file, "r") as f:
         # Load the vertices from the file
@@ -891,7 +908,7 @@ if __name__ == "__main__":
             # Convert the line to a numpy array and deduplicate
             if ";" in line:
                 # If the line contains info, split it
-                info, point_str = line.split(";", 1)
+                _, point_str = line.split(";")
                 point = np.array([float(x) for x in point_str.strip().split(",")])
             else:
                 # If the line does not contain info, just parse the point
@@ -900,10 +917,10 @@ if __name__ == "__main__":
             # We try to deduplicate under the orbit of symmetries
             if point.tobytes() not in seen:
                 seen.add(point.tobytes())
-                vertices.append(point)
+                vertices_list.append(point)
 
     # Convert the list of vertices to a numpy array
-    vertices = np.array(vertices)
+    vertices: np.ndarray = np.array(vertices_list)
     # vertices = np.loadtxt(exp_file, delimiter=",")
     logger.info(f"Loaded {len(vertices)} unique vertices from {exp_file}")
 
