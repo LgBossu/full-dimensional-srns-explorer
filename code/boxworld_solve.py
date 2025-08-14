@@ -540,6 +540,7 @@ def generate_extremals_with_strategy(
             - state_name
             - alice_names: [name0, name1]
             - bob_names: [name0, name1]
+            - long measurement name
             - transform_name
         """
         shaped_short = distrib_short.reshape((delta, delta, m_alice, m_bob_short))
@@ -564,7 +565,7 @@ def generate_extremals_with_strategy(
                 alice_names = [info["alice_names"][i] for i in x_perm]
                 bob_names = [info["bob_names"][i] for i in y_perm]
                 # For output flips, you could add another loop over flip patterns, but for now just permute
-                info_str = f"State: {info['state_name']}, Alice: {alice_names}, Bob: {bob_names}, Transform: {info['transform_name']}"
+                info_str = f"State: {info['state_name']}, Alice: {alice_names}, Bob: {bob_names}, Long Bob: {info['long_name']}, Transform: {info['transform_name']}"
                 results.append((info_str, arr))
         return results
 
@@ -715,6 +716,7 @@ def generate_extremals_with_strategy(
                         "state_name": state.name,
                         "alice_names": alice_names,
                         "bob_names": bob_names,
+                        "long_name": bob_long_measurement.name,
                         "transform_name": transform.name,
                     }
                     computed_distributions.extend(
@@ -821,7 +823,7 @@ def canonical_under(symmetries: List[np.ndarray], vec: np.ndarray) -> bytes:
 
 
 if __name__ == "__main__":
-    exp_file = "222_pruned_with_info.txt"
+    exp_file = "222_with_info_not_pruned.txt"
 
     # Generate all extremal points of the routed Bell experiment boxworld strategies
     extremal_points = generate_extremals_with_strategy(
@@ -841,14 +843,15 @@ if __name__ == "__main__":
 
     logger.info(f"Deduplicated to {len(extremal_points)} unique extremal points.")
 
-    # Prune to keep only vertices
-    from prune_for_vertices import PruneForVertices
+    # # Prune to keep only vertices
+    # from prune_for_vertices import PruneForVertices
 
-    pruner = PruneForVertices(points=[ep[1] for ep in extremal_points])
-    vertex_indices, _, _ = pruner.prune()
+    # pruner = PruneForVertices(points=[ep[1] for ep in extremal_points])
+    # vertex_indices, _, _ = pruner.prune()
 
     vertices_with_info: list[tuple[str, np.ndarray]] = [
-        ep for i, ep in enumerate(extremal_points) if i in vertex_indices
+        ep
+        for i, ep in enumerate(extremal_points)  # if i in vertex_indices
     ]
     written = set()  # To deduplicate points
     with open(exp_file, "a") as f:
@@ -868,91 +871,93 @@ if __name__ == "__main__":
     #         f.write(f"{point.tolist()}\n".replace("[", "").replace("]", "").replace(" ", ""))
     #         # IMPORTANT : it is okay to write duplicate points. We deduplicate before running the CDD solver.
 
-    # Solve the boxworld polytope using the CDD solver
-    from solve_full_polytope import PolytopeTypes, PolytopeWrapper, RepTypes
+    # ################
 
-    # symmetries = generate_symmetries_binary(
-    #     n_inputs_alice=2,
-    #     n_inputs_bob_short=2,
-    #     n_inputs_bob_long=3,
-    # )
-    # logger.info(f"Generated {len(symmetries)} symmetries for the boxworld polytope.")
+    # # Solve the boxworld polytope using the CDD solver
+    # from solve_full_polytope import PolytopeTypes, PolytopeWrapper, RepTypes
 
-    # seen = set()
-    # vertices = []
+    # # symmetries = generate_symmetries_binary(
+    # #     n_inputs_alice=2,
+    # #     n_inputs_bob_short=2,
+    # #     n_inputs_bob_long=3,
+    # # )
+    # # logger.info(f"Generated {len(symmetries)} symmetries for the boxworld polytope.")
+
+    # # seen = set()
+    # # vertices = []
+    # # with open(exp_file, "r") as f:
+    # #     logger.info(f"Loading vertices from {exp_file}...")
+    # #     for line in f:
+    # #         point = np.fromstring(line, sep=",")
+    # #         key = canonical_under(symmetries, point)
+    # #         if key not in seen:
+    # #             seen.add(key)
+    # #             vertices.append(point)
+    # # logger.info(f"Loaded {len(seen)} non-equivalent points from {exp_file}.")
+    # # logger.info(
+    # #     f"{len(symmetries)} symmetries * {len(seen)} unique points = {len(seen) * len(symmetries)} total points."
+    # # )
+
+    # # Load the vertices from the file
+    # seen = set()  # To deduplicate points
+    # vertices_list: list[np.ndarray] = []  # To store the vertices
+
     # with open(exp_file, "r") as f:
+    #     # Load the vertices from the file
     #     logger.info(f"Loading vertices from {exp_file}...")
-    #     for line in f:
-    #         point = np.fromstring(line, sep=",")
-    #         key = canonical_under(symmetries, point)
-    #         if key not in seen:
-    #             seen.add(key)
-    #             vertices.append(point)
-    # logger.info(f"Loaded {len(seen)} non-equivalent points from {exp_file}.")
-    # logger.info(
-    #     f"{len(symmetries)} symmetries * {len(seen)} unique points = {len(seen) * len(symmetries)} total points."
+    #     while True:
+    #         line = f.readline()
+    #         if not line:
+    #             break
+
+    #         # Convert the line to a numpy array and deduplicate
+    #         if ";" in line:
+    #             # If the line contains info, split it
+    #             _, point_str = line.split(";")
+    #             point = np.array([float(x) for x in point_str.strip().split(",")])
+    #         else:
+    #             # If the line does not contain info, just parse the point
+    #             point = np.array([float(x) for x in line.strip().split(",")])
+
+    #         # We try to deduplicate under the orbit of symmetries
+    #         if point.tobytes() not in seen:
+    #             seen.add(point.tobytes())
+    #             vertices_list.append(point)
+
+    # # Convert the list of vertices to a numpy array
+    # vertices: np.ndarray = np.array(vertices_list)
+    # # vertices = np.loadtxt(exp_file, delimiter=",")
+    # logger.info(f"Loaded {len(vertices)} unique vertices from {exp_file}")
+
+    # v_representation = np.hstack(
+    #     [
+    #         np.ones(
+    #             (len(vertices), 1)
+    #         ),  # Add a column of ones to indicate these are proper vertices
+    #         vertices,
+    #     ]
     # )
 
-    # Load the vertices from the file
-    seen = set()  # To deduplicate points
-    vertices_list: list[np.ndarray] = []  # To store the vertices
+    # # # Deduplicate vertices
+    # # v_representation_unique = np.unique(v_representation, axis=0)
+    # # print(f"Vertices shape (deduped): {v_representation_unique.shape}")
+    # # print(v_representation_unique[:, 0])  # Print first 5 vertices for debugging
 
-    with open(exp_file, "r") as f:
-        # Load the vertices from the file
-        logger.info(f"Loading vertices from {exp_file}...")
-        while True:
-            line = f.readline()
-            if not line:
-                break
+    # logger.info("Starting to solve the boxworld polytope...")
+    # solver = PolytopeWrapper(
+    #     source_array=v_representation,
+    #     rep_type=RepTypes.GENERATOR,
+    #     lin_set=None,
+    # )
+    # logger.info("Boxworld polytope loaded.")
 
-            # Convert the line to a numpy array and deduplicate
-            if ";" in line:
-                # If the line contains info, split it
-                _, point_str = line.split(";")
-                point = np.array([float(x) for x in point_str.strip().split(",")])
-            else:
-                # If the line does not contain info, just parse the point
-                point = np.array([float(x) for x in line.strip().split(",")])
+    # bounded = solver.is_bounded()
+    # if bounded:
+    #     logger.info("The boxworld polytope is bounded.")
+    # else:
+    #     logger.warning("The boxworld polytope is unbounded?")
 
-            # We try to deduplicate under the orbit of symmetries
-            if point.tobytes() not in seen:
-                seen.add(point.tobytes())
-                vertices_list.append(point)
-
-    # Convert the list of vertices to a numpy array
-    vertices: np.ndarray = np.array(vertices_list)
-    # vertices = np.loadtxt(exp_file, delimiter=",")
-    logger.info(f"Loaded {len(vertices)} unique vertices from {exp_file}")
-
-    v_representation = np.hstack(
-        [
-            np.ones(
-                (len(vertices), 1)
-            ),  # Add a column of ones to indicate these are proper vertices
-            vertices,
-        ]
-    )
-
-    # # Deduplicate vertices
-    # v_representation_unique = np.unique(v_representation, axis=0)
-    # print(f"Vertices shape (deduped): {v_representation_unique.shape}")
-    # print(v_representation_unique[:, 0])  # Print first 5 vertices for debugging
-
-    logger.info("Starting to solve the boxworld polytope...")
-    solver = PolytopeWrapper(
-        source_array=v_representation,
-        rep_type=RepTypes.GENERATOR,
-        lin_set=None,
-    )
-    logger.info("Boxworld polytope loaded.")
-
-    bounded = solver.is_bounded()
-    if bounded:
-        logger.info("The boxworld polytope is bounded.")
-    else:
-        logger.warning("The boxworld polytope is unbounded?")
-
-    solver.write_inequalities(
-        polytope_type=PolytopeTypes.MEASURED,
-        file_id=exp_file.split(".")[0],
-    )
+    # solver.write_inequalities(
+    #     polytope_type=PolytopeTypes.MEASURED,
+    #     file_id=exp_file.split(".")[0],
+    # )
