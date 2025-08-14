@@ -70,7 +70,7 @@ class PruneForVertices:
             c=np.zeros(A.shape[1]),
             A_eq=A,
             b_eq=b,
-            bounds=(0, None),
+            bounds=(0, 1),
             method="highs",
         )
         return not res.success  # The point is a vertex if the LP fails to find a solution.
