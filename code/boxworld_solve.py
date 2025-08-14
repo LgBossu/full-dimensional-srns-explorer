@@ -516,6 +516,216 @@ def generate_all_extremal_points(
     return computed_distributions
 
 
+def generate_extremals_with_strategy(
+    delta: int = 2,
+    m_alice: int = 2,
+    m_bob_short: int = 2,
+    m_bob_long: int = 2,
+    idx_range: tuple[int, int] = (0, 23),
+) -> list[tuple[str, np.ndarray]]:
+    """
+    Generate all extremal points of the routed Bell experiment boxworld strategies.
+    Parameters prefixed `m` are the numbers of inputs for respectively Alice, Bob short and Bob long channels.
+    """
+
+    def generate_distribution_symmetries_with_strategy(
+        distrib_short: np.ndarray,
+        distrib_long: np.ndarray,
+        info: dict,
+    ) -> list[tuple[str, np.ndarray]]:
+        """
+        Generate all relabelings (symmetries) of a distribution by permuting Alice/Bob inputs x and y.
+        Returns all unique permutations as (info_string, distribution) tuples.
+        The info dict contains:
+            - state_name
+            - alice_names: [name0, name1]
+            - bob_names: [name0, name1]
+            - transform_name
+        """
+        shaped_short = distrib_short.reshape((delta, delta, m_alice, m_bob_short))
+        shaped_long = distrib_long.reshape((delta, delta, m_alice, m_bob_long))
+        x_perms = list(itertools.permutations(range(m_alice)))
+        y_perms = list(itertools.permutations(range(m_bob_short)))
+        results = []
+        seen = set()
+        for x_perm in x_perms:
+            for y_perm in y_perms:
+                # Permute x and y axes
+                permuted_short = shaped_short[:, :, x_perm, :][:, :, :, y_perm]
+                permuted_long = shaped_long[:, :, x_perm, :]
+                arr = np.hstack((permuted_short.flatten(), permuted_long.flatten()))
+                key = arr.tobytes()
+                if key in seen:
+                    continue
+                seen.add(key)
+                # Update measurement names according to permutation
+                alice_names = [info["alice_names"][i] for i in x_perm]
+                bob_names = [info["bob_names"][i] for i in y_perm]
+                # For output flips, you could add another loop over flip patterns, but for now just permute
+                info_str = f"State: {info['state_name']}, Alice: {alice_names}, Bob: {bob_names}, Transform: {info['transform_name']}"
+                results.append((info_str, arr))
+        return results
+
+    def routed_indices_to_index(a, b, x, y, z):
+        """
+        In the routed setting, convert a set of indices to the corresponding 1-D index
+        """
+        if z == 0:
+            return (
+                (a * (delta * m_alice * m_bob_short))
+                + (b * (m_alice * m_bob_short))
+                + (x * m_alice)
+                + y
+            )
+        elif z == 1:
+            return (
+                (a * (delta * m_alice * m_bob_long))
+                + (b * (m_alice * m_bob_long))
+                + (x * m_alice)
+                + y
+            )
+
+    computed_distributions: list[tuple[str, np.ndarray]] = []  # This will hold all computed effects
+
+    vertices = list(BoxworldBipartiteVertex)[idx_range[0] : idx_range[1] + 1]
+
+    for state in vertices:
+        logger.info(f"Processing state: {state.value.arr}")
+        from itertools import combinations_with_replacement
+
+        canonical_measurements_alice = list(combinations_with_replacement(BoxworldEffect, m_alice))
+        canonical_measurements_bob = list(
+            combinations_with_replacement(BoxworldEffect, m_bob_short)
+        )
+
+        for alice_tuple, bob_short_tuple in tqdm(
+            [(i, j) for i in canonical_measurements_alice for j in canonical_measurements_bob]
+        ):
+            alice = [
+                [alice_tuple[i].value.arr, complements[alice_tuple[i]].value.arr]
+                for i in range(m_alice)
+            ]
+            bob_short = [
+                [bob_short_tuple[i].value.arr, complements[bob_short_tuple[i]].value.arr]
+                for i in range(m_bob_short)
+            ]
+
+            # Get enum names for info string
+            alice_names = [alice_tuple[i].name for i in range(m_alice)]
+            bob_names = [bob_short_tuple[i].name for i in range(m_bob_short)]
+
+            for bob_long_measurement in BoxworldEffect:
+                bob_long = [
+                    bob_long_measurement.value.arr,
+                    complements[bob_long_measurement].value.arr,
+                ]
+
+                if m_bob_long not in [2, 3]:
+                    raise ValueError("Only m=2 and m=3 are supported for now.")
+                TranformClass = {2: TransformOutput, 3: TransformOutput3}[m_bob_long]
+
+                for transform in TranformClass:
+                    distrib_short = np.zeros(delta**2 * m_alice * m_bob_short, dtype=float)
+                    distrib_long = np.zeros(delta**2 * m_alice * m_bob_long, dtype=float)
+
+                    for a, b, x, y in [
+                        (i, j, k, l)
+                        for i in range(delta)
+                        for j in range(delta)
+                        for k in range(m_alice)
+                        for l in range(m_bob_short)
+                    ]:
+                        distrib_short[
+                            routed_indices_to_index(
+                                a,
+                                b,
+                                x,
+                                y,
+                                0,
+                            )
+                        ] = np.dot(np.kron(alice[x][a], bob_short[y][b]), state.value.arr)
+
+                    for a, b, x, y in [
+                        (i, j, k, l)
+                        for i in range(delta)
+                        for j in range(delta)
+                        for k in range(m_alice)
+                        for l in range(m_bob_long)
+                    ]:
+                        for b_prime in range(delta):
+                            distrib_long[
+                                routed_indices_to_index(
+                                    a,
+                                    transform.value.arr[b_prime, y],
+                                    x,
+                                    y,
+                                    1,
+                                )
+                            ] += np.dot(np.kron(alice[x][a], bob_long[b_prime]), state.value.arr)
+
+                    normalized = True
+                    for x, y in [(i, j) for i in range(m_alice) for j in range(m_bob_short)]:
+                        total = np.sum(
+                            [
+                                distrib_short[i]
+                                for i in [
+                                    routed_indices_to_index(_a, _b, x, y, 0)
+                                    for _a in range(delta)
+                                    for _b in range(delta)
+                                ]
+                            ]
+                        )
+                        if total != 1:
+                            logger.error(f"Distribution not normalized: {total} != 1")
+                            normalized = False
+
+                    for x, y in [(i, j) for i in range(m_alice) for j in range(m_bob_long)]:
+                        total = np.sum(
+                            [
+                                distrib_long[i]
+                                for i in [
+                                    routed_indices_to_index(_a, _b, x, y, 1)
+                                    for _a in range(delta)
+                                    for _b in range(delta)
+                                ]
+                            ]
+                        )
+                        if total > 0:
+                            if total != 1:
+                                logger.trace(f"Normalizing long-path distribution: {total} != 1")
+                                for i in [
+                                    routed_indices_to_index(_a, _b, x, y, 1)
+                                    for _a in range(delta)
+                                    for _b in range(delta)
+                                ]:
+                                    distrib_long[i] /= total
+                        else:
+                            logger.error(f"Long-path distribution not normalized: {total} <= 0")
+                            normalized = False
+
+                    if not normalized:
+                        raise ValueError("Distribution is not normalized.")
+
+                    distrib_long = distrib_long.flatten()
+                    distrib_short = distrib_short.flatten()
+
+                    info = {
+                        "state_name": state.name,
+                        "alice_names": alice_names,
+                        "bob_names": bob_names,
+                        "transform_name": transform.name,
+                    }
+                    computed_distributions.extend(
+                        generate_distribution_symmetries_with_strategy(
+                            distrib_short=distrib_short,
+                            distrib_long=distrib_long,
+                            info=info,
+                        )
+                    )
+
+    return computed_distributions
+
+
 # def generate_symmetries_binary(
 #     n_inputs_alice: int,
 #     n_inputs_bob_short: int,
@@ -609,21 +819,32 @@ def canonical_under(symmetries: List[np.ndarray], vec: np.ndarray) -> bytes:
 
 
 if __name__ == "__main__":
-    exp_name = str(input("Enter experiment name: ")).strip()
-    exp_file = f"boxworld_extremals_{exp_name}.txt"
+    exp_file = "vertices_pruned_with_info_222.txt"
 
-    # for i in range(24):
-    #     # Generate all extremal points of the routed Bell experiment boxworld strategies
-    #     extremal_points = generate_all_extremal_points(
-    #         delta=2, m_alice=2, m_bob_short=2, m_bob_long=3, idx_range=(i, i)
-    #     )
+    # Generate all extremal points of the routed Bell experiment boxworld strategies
+    extremal_points = generate_extremals_with_strategy(
+        delta=2, m_alice=2, m_bob_short=2, m_bob_long=2, idx_range=(0, 23)
+    )
 
-    #     # Write the extremal points to a file
-    #     with open(exp_file, "a") as f:
-    #         for point in extremal_points:
-    #             f.write(f"{point.tolist()}\n".replace("[", "").replace("]", "").replace(" ", ""))
-    #             # IMPORTANT : it is okay to write duplicate points. We deduplicate before running the CDD solver.
-    #         logger.success(f"State {i} extremal points written to {exp_file} successfully.")
+    # Prune to keep only vertices
+    from prune_for_vertices import PruneForVertices
+
+    pruner = PruneForVertices(points=[ep[1] for ep in extremal_points])
+    vertex_indices, _, _ = pruner.prune()
+
+    vertices = [ep for i, ep in enumerate(extremal_points) if i in vertex_indices]
+
+    with open(exp_file, "w") as f:
+        for info, point in vertices:
+            f.write(
+                f"{info};{str(point.tolist()).replace("[", "").replace("]", "").replace(" ", "")}\n"
+            )
+
+    # # Write the extremal points to a file
+    # with open(exp_file, "a") as f:
+    #     for point in extremal_points:
+    #         f.write(f"{point.tolist()}\n".replace("[", "").replace("]", "").replace(" ", ""))
+    #         # IMPORTANT : it is okay to write duplicate points. We deduplicate before running the CDD solver.
 
     # Solve the boxworld polytope using the CDD solver
     from solve_full_polytope import PolytopeTypes, PolytopeWrapper, RepTypes
@@ -663,7 +884,13 @@ if __name__ == "__main__":
                 break
 
             # Convert the line to a numpy array and deduplicate
-            point = np.array([float(x) for x in line.strip().split(",")])
+            if ";" in line:
+                # If the line contains info, split it
+                info, point_str = line.split(";", 1)
+                point = np.array([float(x) for x in point_str.strip().split(",")])
+            else:
+                # If the line does not contain info, just parse the point
+                point = np.array([float(x) for x in line.strip().split(",")])
 
             # We try to deduplicate under the orbit of symmetries
             if point.tobytes() not in seen:
@@ -705,5 +932,5 @@ if __name__ == "__main__":
 
     solver.write_inequalities(
         polytope_type=PolytopeTypes.MEASURED,
-        file_id=f"boxworld_polytope_{exp_name}",
+        file_id="vertices_pruned_with_info_222",
     )
