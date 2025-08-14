@@ -549,15 +549,17 @@ def generate_extremals_with_strategy(
         results = []
         seen = set()
         for x_perm in x_perms:
+            permuted_long = shaped_long[:, :, x_perm, :]
             for y_perm in y_perms:
                 # Permute x and y axes
                 permuted_short = shaped_short[:, :, x_perm, :][:, :, :, y_perm]
-                permuted_long = shaped_long[:, :, x_perm, :]
                 arr = np.hstack((permuted_short.flatten(), permuted_long.flatten()))
+
                 key = arr.tobytes()
                 if key in seen:
                     continue
                 seen.add(key)
+
                 # Update measurement names according to permutation
                 alice_names = [info["alice_names"][i] for i in x_perm]
                 bob_names = [info["bob_names"][i] for i in y_perm]
@@ -633,7 +635,7 @@ def generate_extremals_with_strategy(
                         for i in range(delta)
                         for j in range(delta)
                         for k in range(m_alice)
-                        for l in range(m_bob_short)
+                        for l in range(m_bob_short)  # noqa: E741
                     ]:
                         distrib_short[
                             routed_indices_to_index(
@@ -650,7 +652,7 @@ def generate_extremals_with_strategy(
                         for i in range(delta)
                         for j in range(delta)
                         for k in range(m_alice)
-                        for l in range(m_bob_long)
+                        for l in range(m_bob_long)  # noqa: E741
                     ]:
                         for b_prime in range(delta):
                             distrib_long[
@@ -819,7 +821,7 @@ def canonical_under(symmetries: List[np.ndarray], vec: np.ndarray) -> bytes:
 
 
 if __name__ == "__main__":
-    exp_file = "vertices_pruned_with_info_222.txt"
+    exp_file = "222_pruned_with_info.txt"
 
     # Generate all extremal points of the routed Bell experiment boxworld strategies
     extremal_points = generate_extremals_with_strategy(
@@ -833,9 +835,12 @@ if __name__ == "__main__":
     vertex_indices, _, _ = pruner.prune()
 
     vertices = [ep for i, ep in enumerate(extremal_points) if i in vertex_indices]
-
+    written = set()  # To deduplicate points
     with open(exp_file, "w") as f:
         for info, point in vertices:
+            if point.tobytes() in written:
+                continue
+            written.add(point.tobytes())
             f.write(
                 f"{info};{str(point.tolist()).replace("[", "").replace("]", "").replace(" ", "")}\n"
             )
@@ -900,7 +905,7 @@ if __name__ == "__main__":
     # Convert the list of vertices to a numpy array
     vertices = np.array(vertices)
     # vertices = np.loadtxt(exp_file, delimiter=",")
-    logger.info(f"Loaded {len(vertices)} unique vertices from boxworld_extremals.txt")
+    logger.info(f"Loaded {len(vertices)} unique vertices from {exp_file}")
 
     v_representation = np.hstack(
         [
@@ -932,5 +937,5 @@ if __name__ == "__main__":
 
     solver.write_inequalities(
         polytope_type=PolytopeTypes.MEASURED,
-        file_id="vertices_pruned_with_info_222",
+        file_id=exp_file.split(".")[0],
     )
