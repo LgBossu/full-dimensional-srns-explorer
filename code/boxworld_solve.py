@@ -203,18 +203,18 @@ class TransformOutput(Enum):
     where b', y ∈ {0, 1}. There are 4 input pairs, so 2^4 = 16 possible functions.
     """
 
-    f1 = ArrayWrapper(np.array([[0, 0], [0, 0]]))  # Always outputs 0
-    f2 = ArrayWrapper(np.array([[0, 0], [0, 1]]))  # Outputs b' AND y
-    f3 = ArrayWrapper(np.array([[0, 0], [1, 0]]))  # Outputs NOTy AND b'
-    f4 = ArrayWrapper(np.array([[0, 0], [1, 1]]))  # Outputs b'
-    f5 = ArrayWrapper(np.array([[0, 1], [0, 0]]))  # Outputs y AND NOTb'
-    f6 = ArrayWrapper(np.array([[0, 1], [0, 1]]))  # Outputs y
-    f7 = ArrayWrapper(np.array([[0, 1], [1, 0]]))  # Outputs b' XOR y
-    f8 = ArrayWrapper(np.array([[0, 1], [1, 1]]))  # Outputs b' OR y
-    f9 = ArrayWrapper(np.array([[1, 0], [0, 0]]))  # Outputs NOTy AND NOTb'
-    f10 = ArrayWrapper(np.array([[1, 0], [0, 1]]))  # Outputs NOT(b' XOR y)
-    f11 = ArrayWrapper(np.array([[1, 0], [1, 0]]))  # Outputs NOTy
-    f12 = ArrayWrapper(np.array([[1, 0], [1, 1]]))  # ...
+    f1 = ArrayWrapper(np.array([[0, 0], [0, 0]]))
+    f2 = ArrayWrapper(np.array([[0, 0], [0, 1]]))
+    f3 = ArrayWrapper(np.array([[0, 0], [1, 0]]))
+    f4 = ArrayWrapper(np.array([[0, 0], [1, 1]]))
+    f5 = ArrayWrapper(np.array([[0, 1], [0, 0]]))
+    f6 = ArrayWrapper(np.array([[0, 1], [0, 1]]))
+    f7 = ArrayWrapper(np.array([[0, 1], [1, 0]]))
+    f8 = ArrayWrapper(np.array([[0, 1], [1, 1]]))
+    f9 = ArrayWrapper(np.array([[1, 0], [0, 0]]))
+    f10 = ArrayWrapper(np.array([[1, 0], [0, 1]]))
+    f11 = ArrayWrapper(np.array([[1, 0], [1, 0]]))
+    f12 = ArrayWrapper(np.array([[1, 0], [1, 1]]))
     f13 = ArrayWrapper(np.array([[1, 1], [0, 0]]))
     f14 = ArrayWrapper(np.array([[1, 1], [0, 1]]))
     f15 = ArrayWrapper(np.array([[1, 1], [1, 0]]))
@@ -823,47 +823,51 @@ def canonical_under(symmetries: List[np.ndarray], vec: np.ndarray) -> bytes:
 
 
 if __name__ == "__main__":
-    exp_file = "222_with_info_not_pruned.txt"
+    print(BoxworldBipartiteVertex.w1.value.arr)
+    print()
+    print(BoxworldBipartiteVertex.w17.value.arr)
 
-    # Generate all extremal points of the routed Bell experiment boxworld strategies
-    extremal_points = generate_extremals_with_strategy(
-        delta=2, m_alice=2, m_bob_short=2, m_bob_long=2, idx_range=(0, 23)
-    )
+    # exp_file = "222_with_info_not_pruned.txt"
 
-    logger.info(f"Generated a total of {len(extremal_points)} extremal points.")
+    # # Generate all extremal points of the routed Bell experiment boxworld strategies
+    # extremal_points = generate_extremals_with_strategy(
+    #     delta=2, m_alice=2, m_bob_short=2, m_bob_long=2, idx_range=(0, 23)
+    # )
 
-    # Deduplicate the list of points
-    seen = set()
-    deduplicated: list[tuple[str, np.ndarray]] = []
-    for ep in extremal_points:
-        if ep[1].tobytes() not in seen:
-            seen.add(ep[1].tobytes())
-            deduplicated.append(ep)
-    extremal_points = deduplicated
+    # logger.info(f"Generated a total of {len(extremal_points)} extremal points.")
 
-    logger.info(f"Deduplicated to {len(extremal_points)} unique extremal points.")
+    # # Deduplicate the list of points
+    # seen = set()
+    # deduplicated: list[tuple[str, np.ndarray]] = []
+    # for ep in extremal_points:
+    #     if ep[1].tobytes() not in seen:
+    #         seen.add(ep[1].tobytes())
+    #         deduplicated.append(ep)
+    # extremal_points = deduplicated
 
-    # # Prune to keep only vertices
-    # from prune_for_vertices import PruneForVertices
+    # logger.info(f"Deduplicated to {len(extremal_points)} unique extremal points.")
 
-    # pruner = PruneForVertices(points=[ep[1] for ep in extremal_points])
-    # vertex_indices, _, _ = pruner.prune()
+    # # # Prune to keep only vertices
+    # # from prune_for_vertices import PruneForVertices
 
-    vertices_with_info: list[tuple[str, np.ndarray]] = [
-        ep
-        for i, ep in enumerate(extremal_points)  # if i in vertex_indices
-    ]
-    written = set()  # To deduplicate points
-    with open(exp_file, "a") as f:
-        for info, point in vertices_with_info:
-            if point.tobytes() in written:
-                continue
-            written.add(point.tobytes())
-            f.write(
-                f"{info};{str(point.tolist()).replace("[", "").replace("]", "").replace(" ", "")}\n"
-            )
+    # # pruner = PruneForVertices(points=[ep[1] for ep in extremal_points])
+    # # vertex_indices, _, _ = pruner.prune()
 
-    logger.info(f"Wrote {len(written)} unique vertices to {exp_file}")
+    # vertices_with_info: list[tuple[str, np.ndarray]] = [
+    #     ep
+    #     for i, ep in enumerate(extremal_points)  # if i in vertex_indices
+    # ]
+    # written = set()  # To deduplicate points
+    # with open(exp_file, "a") as f:
+    #     for info, point in vertices_with_info:
+    #         if point.tobytes() in written:
+    #             continue
+    #         written.add(point.tobytes())
+    #         f.write(
+    #             f"{info};{str(point.tolist()).replace("[", "").replace("]", "").replace(" ", "")}\n"
+    #         )
+
+    # logger.info(f"Wrote {len(written)} unique vertices to {exp_file}")
 
     # # Write the extremal points to a file
     # with open(exp_file, "a") as f:
