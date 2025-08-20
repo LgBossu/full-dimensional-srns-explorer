@@ -7,6 +7,7 @@ Code and programmatic methods surrounding a research project at ULB on routed Be
 ## Overview
 
 This project provides tools for:
+
 - Defining and manipulating behavior sets (including no-signaling and short-range no-signaling sets)
 - Enumerating and analyzing polytopes arising in quantum information theory
 - Sampling, projecting, and analyzing behaviors in high-dimensional spaces
@@ -46,6 +47,7 @@ The main code is in the `code/` directory and includes:
 ## Data
 
 The `output/` directory contains results and intermediate files, such as:
+
 - Vertices and H-representations of polytopes (e.g., `latent_polytope_vertices.txt`, `measured_h_representation_boxworld_polytope.txt`)
 - Sampled behaviors and analysis results
 
@@ -58,7 +60,6 @@ The `output/` directory contains results and intermediate files, such as:
    A `pyproject.toml` file is provided at root level for dependency management.
 
    **NB:** This project also requires access to the C-based `cdd` library, along with its python wrapper `pycddlib`. This should be externally installed and available on the running system.
-
 
 2. **Run analyses:**  
    - Use `solve_full_polytope.py` to enumerate and analyze the SRNS polytope.
@@ -73,7 +74,7 @@ The `output/` directory contains results and intermediate files, such as:
 ## References
 
 - See the associated internship report for references and detailed explanations of the project.
-    - Readers not in possession of said report are, for the time being, likely not supposed to view this repository.
+  - Readers not in possession of said report are, for the time being, likely not supposed to view this repository.
 
 ---
 
@@ -81,4 +82,8 @@ The `output/` directory contains results and intermediate files, such as:
 
 See `LICENSE` file for details.
 
+# Additional info
 
+As of Aug 20, 2025, we try to complete certain computations using [PANDA](http://comopt.ifi.uni-heidelberg.de/software/PANDA/) (see the associated [publication](http://comopt.ifi.uni-heidelberg.de/software/PANDA/#publication) ; the [archive repo we used](https://github.com/stefanloerwald/panda), and a personal [fork](https://github.com/LgBossu/panda) introduced to fix the source code on my personal setup (details on github, or by contacting me directly)).
+The path to the PANDA built executable is stored as an environment variable in `paths.env`, as `PANDA="path/to/panda"`.
+This is expected in `call_panda.py`.
