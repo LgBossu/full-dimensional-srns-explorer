@@ -178,7 +178,11 @@ def call_panda(input_file: str, output_file: str) -> None:
     """
     if PANDA is None:
         raise RuntimeError("PANDA environment variable is not set or could not be loaded.")
-    subprocess.run([PANDA, input_file, output_file], check=True)
+    subprocess.run(
+        f"{PANDA} {input_file} > {output_file} --integer-type=safe --threads=16",
+        check=True,
+        shell=True,
+    )
 
 
 def run_panda(input_file: str) -> str:
