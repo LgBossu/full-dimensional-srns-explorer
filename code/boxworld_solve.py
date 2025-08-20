@@ -30,7 +30,7 @@ Germany```
 
 import itertools
 from enum import Enum
-from typing import List, Union
+from typing import Union
 
 # from behaviors import routed_indices_to_index, short_range_indices_to_index
 import numpy as np
@@ -730,107 +730,190 @@ def generate_extremals_with_strategy(
     return computed_distributions
 
 
-# def generate_symmetries_binary(
-#     n_inputs_alice: int,
-#     n_inputs_bob_short: int,
-#     n_inputs_bob_long: int,
-# ) -> List[np.ndarray]:
-#     """
-#     AI GENERATED CODE
+def full_boxworld_extremals(
+    delta: int = 2,
+    m_alice: int = 2,
+    m_bob_short: int = 2,
+    m_bob_long: int = 2,
+    idx_range: tuple[int, int] = (0, 23),
+) -> list[np.ndarray]:
+    """
+    Generate all extremal points of the routed Bell experiment boxworld strategies.
+    Under this function, we do NOT enforce short-range, and compute full routed correlations.
+    """
+    if delta != 2:
+        raise NotImplementedError("Full boxworld extremals are only implemented for delta=2.")
 
-#     Symmetry index arrays for (a,b,x,y)-flattened probability vectors with binary outputs.
-#     - Permute Alice inputs S_{nA}
-#     - Permute Bob-short inputs S_{nB_short}
-#     - Bob-long inputs: identity (see reasoning)
-#     - Output flips: per-input, i.e., a -> a XOR f_A(x), b -> b XOR f_B(y)
-#       with f_A in {0,1}^{nA}, f_B in {0,1}^{nB_short} (and no flips on long branch)
-#     """
-#     nA = n_inputs_alice
-#     nBs = n_inputs_bob_short
-#     nBl = n_inputs_bob_long
-#     nO = 2  # binary
+    def generate_distribution_symmetries_and_concatenate(
+        distrib_short: np.ndarray, distrib_long: np.ndarray
+    ) -> list[np.ndarray]:
+        """
+        Generate all relabelings (symmetries) of a distribution by permuting Alice/Bob inputs x and y.
+        Returns all unique permutations as flattened arrays.
+        Long-path distributions ARE required to be symmetrized along, to account for Alice-sided symmetries.
 
-#     # Total length (a,b,x,y) short + long
-#     size_short = nO * nO * nA * nBs
-#     size_long = nO * nO * nA * nBl
-#     total_size = size_short + size_long
+        :param distribution: The SHORT-PATH distribution to generate symmetries for.
+        :param distrib_long: The LONG-PATH distribution to generate symmetries for.
+        :return: A list of all symmetrized concatenated distributions.
+        """
+        shaped_short = distrib_short.reshape((delta, delta, m_alice, m_bob_short))
+        shaped_long = distrib_long.reshape((delta, delta, m_alice, m_bob_long))
+        symmetries: list[np.ndarray] = []
+        x_perms = list(itertools.permutations(range(m_alice)))
+        y_short_perms = list(itertools.permutations(range(m_bob_short)))
+        y_long_perms = list(itertools.permutations(range(m_bob_long)))
 
-#     # Base indices
-#     id_short = np.arange(size_short).reshape(nO, nO, nA, nBs)
-#     id_long = (np.arange(size_long) + size_short).reshape(nO, nO, nA, nBl)
+        for x_perm in x_perms:
+            for y_short_perm in y_short_perms:
+                # Permute x and y axes
+                permuted_short = shaped_short[:, :, x_perm, :][:, :, :, y_short_perm]
+                for y_long_perm in y_long_perms:
+                    permuted_long = shaped_long[:, :, x_perm, :][:, :, :, y_long_perm]
+                    symmetries.append(
+                        np.hstack((permuted_short.flatten(), permuted_long.flatten()))
+                    )
 
-#     syms = []
-#     seen = set()
+        # Optionally, remove duplicates
+        unique = []
+        seen = set()
+        for arr in symmetries:
+            key = arr.tobytes()
+            if key not in seen:
+                unique.append(arr)
+                seen.add(key)
+        return unique
 
-#     # Input permutations
-#     A_permutes = list(itertools.permutations(range(nA)))  # S_{nA}
-#     Bs_permutes = list(itertools.permutations(range(nBs)))  # S_{nB_short}
-#     Bl_permutes = [tuple(range(nBl))]  # identity only
+    def routed_indices_to_index(a, b, x, y, z):
+        """
+        In the routed setting, convert a set of indices to the corresponding 1-D index
+        """
+        if z == 0:
+            return (
+                (a * (delta * m_alice * m_bob_short))
+                + (b * (m_alice * m_bob_short))
+                + (x * m_alice)
+                + y
+            )
+        elif z == 1:
+            return (
+                (a * (delta * m_alice * m_bob_long))
+                + (b * (m_alice * m_bob_long))
+                + (x * m_alice)
+                + y
+            )
 
-#     # Per-input output flips (bitmasks of length nA or nBs)
-#     # For Alice: fA[x] in {0,1}; for Bob-short: fB[y] in {0,1}
-#     for ap in A_permutes:
-#         for bsp in Bs_permutes:
-#             blp = Bl_permutes[0]
+    from itertools import combinations_with_replacement
 
-#             # all flip patterns
-#             for fA_bits in itertools.product([0, 1], repeat=nA):
-#                 fA = np.array(fA_bits, dtype=int)
-#                 for fB_bits in itertools.product([0, 1], repeat=nBs):
-#                     fB = np.array(fB_bits, dtype=int)
+    computed_distributions: list[np.ndarray] = []  # This will hold all computed effects
 
-#                     # SHORT branch mapping
-#                     # idx'(a,b,x,y) = idx(a^fA[x], b^fB[y], ap[x], bsp[y])
-#                     a_src = np.arange(nO)[:, None, None, None]
-#                     b_src = np.arange(nO)[None, :, None, None]
-#                     x_src = np.arange(nA)[None, None, :, None]
-#                     y_src = np.arange(nBs)[None, None, None, :]
+    vertices = list(BoxworldBipartiteVertex)[idx_range[0] : idx_range[1] + 1]
 
-#                     a_map = a_src ^ fA[x_src]  # per-input XOR
-#                     b_map = b_src ^ fB[y_src]
-#                     x_map = np.take(ap, x_src)
-#                     y_map = np.take(bsp, y_src)
+    canonical_measurements_alice = list(combinations_with_replacement(BoxworldEffect, m_alice))
+    canonical_measurements_bs = list(combinations_with_replacement(BoxworldEffect, m_bob_short))
+    canonical_measurements_bl = list(combinations_with_replacement(BoxworldEffect, m_bob_long))
 
-#                     idx_short = id_short[a_map, b_map, x_map, y_map].ravel()
+    for vertex in vertices:
+        logger.info(f"Processing vertex: {vertex.value.arr}")
 
-#                     # LONG branch mapping (no b-output flips per long y; no y-permutation)
-#                     # we still allow Alice per-input flips (same fA) and input perm ap
-#                     yL_src = np.arange(nBl)[None, None, None, :]
-#                     idx_long = id_long[
-#                         a_map[:, :, :, : yL_src.shape[3]],
-#                         b_src[:, :, :, : yL_src.shape[3]],  # no flip on long
-#                         x_map[:, :, :, : yL_src.shape[3]],
-#                         yL_src,
-#                     ].ravel()
+        for alice_tuple, bob_short_tuple, bob_long_tuple in tqdm(
+            [
+                (i, j, k)
+                for i in canonical_measurements_alice
+                for j in canonical_measurements_bs
+                for k in canonical_measurements_bl
+            ]
+        ):
+            alice = [
+                [alice_tuple[x].value.arr, complements[alice_tuple[x]].value.arr]
+                for x in range(m_alice)
+            ]
+            bob_short = [
+                [bob_short_tuple[y].value.arr, complements[bob_short_tuple[y]].value.arr]
+                for y in range(m_bob_short)
+            ]
+            bob_long = [
+                [bob_long_tuple[y].value.arr, complements[bob_long_tuple[y]].value.arr]
+                for y in range(m_bob_long)
+            ]
 
-#                     perm = np.concatenate([idx_short, idx_long])
+            # Compute the distribution for this combination of measurements
+            distrib_short = np.zeros(delta**2 * m_alice * m_bob_short, dtype=float)
+            distrib_long = np.zeros(delta**2 * m_alice * m_bob_long, dtype=float)
+            for a, b, x, y in [
+                (i, j, k, l)
+                for i in range(delta)
+                for j in range(delta)
+                for k in range(m_alice)
+                for l in range(m_bob_short)  # noqa: E741
+            ]:
+                distrib_short[routed_indices_to_index(a, b, x, y, 0)] = np.dot(
+                    np.kron(alice[x][a], bob_short[y][b]),
+                    vertex.value.arr,
+                )
+            for a, b, x, y in [
+                (i, j, k, l)
+                for i in range(delta)
+                for j in range(delta)
+                for k in range(m_alice)
+                for l in range(m_bob_long)  # noqa: E741
+            ]:
+                distrib_long[routed_indices_to_index(a, b, x, y, 1)] = np.dot(
+                    np.kron(alice[x][a], bob_long[y][b]),
+                    vertex.value.arr,
+                )
 
-#                     tb = perm.tobytes()
-#                     if tb not in seen:
-#                         seen.add(tb)
-#                         syms.append(perm)
+            # Check normalization on both paths
+            normalized = True
+            for x, y in [(i, j) for i in range(m_alice) for j in range(m_bob_short)]:
+                total = np.sum(
+                    [
+                        distrib_short[i]
+                        for i in [
+                            routed_indices_to_index(_a, _b, x, y, 0)
+                            for _a in range(delta)
+                            for _b in range(delta)
+                        ]
+                    ]
+                )
+                if total != 1:
+                    logger.error(f"Short-path distribution not normalized: {total} != 1")
+                    normalized = False
+            for x, y in [(i, j) for i in range(m_alice) for j in range(m_bob_long)]:
+                total = np.sum(
+                    [
+                        distrib_long[i]
+                        for i in [
+                            routed_indices_to_index(_a, _b, x, y, 1)
+                            for _a in range(delta)
+                            for _b in range(delta)
+                        ]
+                    ]
+                )
+                if total != 1:
+                    logger.error(f"Long-path distribution not normalized: {total} != 1")
+                    normalized = False
 
-#     return syms
+            if not normalized:
+                raise ValueError("Distribution is not normalized.")
 
+            distrib_short = distrib_short.flatten()
+            distrib_long = distrib_long.flatten()
 
-def canonical_under(symmetries: List[np.ndarray], vec: np.ndarray) -> bytes:
-    # Pick lexicographically smallest byte-string among the orbit
-    candidates = (vec[s] for s in symmetries)
-    return min((c.tobytes() for c in candidates))
+            computed_distributions.extend(
+                generate_distribution_symmetries_and_concatenate(
+                    distrib_short=distrib_short,
+                    distrib_long=distrib_long,
+                )
+            )
 
-
-# ################
+    return computed_distributions
 
 
 if __name__ == "__main__":
-    print(BoxworldBipartiteVertex.w1.value.arr)
-    print()
-    print(BoxworldBipartiteVertex.w17.value.arr)
-
-    # exp_file = "222_with_info_not_pruned.txt"
+    exp_file = "full_222.txt"
 
     # # Generate all extremal points of the routed Bell experiment boxworld strategies
-    # extremal_points = generate_extremals_with_strategy(
+    # extremal_points = full_boxworld_extremals(
     #     delta=2, m_alice=2, m_bob_short=2, m_bob_long=2, idx_range=(0, 23)
     # )
 
@@ -838,34 +921,30 @@ if __name__ == "__main__":
 
     # # Deduplicate the list of points
     # seen = set()
-    # deduplicated: list[tuple[str, np.ndarray]] = []
+    # deduplicated: list[np.ndarray] = []
     # for ep in extremal_points:
-    #     if ep[1].tobytes() not in seen:
-    #         seen.add(ep[1].tobytes())
+    #     if ep.tobytes() not in seen:
+    #         seen.add(ep.tobytes())
     #         deduplicated.append(ep)
     # extremal_points = deduplicated
 
     # logger.info(f"Deduplicated to {len(extremal_points)} unique extremal points.")
 
-    # # # Prune to keep only vertices
-    # # from prune_for_vertices import PruneForVertices
+    # # Prune to keep only vertices, and write with deduplication
+    # from prune_for_vertices import PruneForVertices
 
-    # # pruner = PruneForVertices(points=[ep[1] for ep in extremal_points])
-    # # vertex_indices, _, _ = pruner.prune()
+    # pruner = PruneForVertices(points=[ep for ep in extremal_points])
+    # vertex_indices, _, _ = pruner.prune()
 
-    # vertices_with_info: list[tuple[str, np.ndarray]] = [
-    #     ep
-    #     for i, ep in enumerate(extremal_points)  # if i in vertex_indices
-    # ]
+    # vertices: list[np.ndarray] = [ep for i, ep in enumerate(extremal_points) if i in vertex_indices]
+
     # written = set()  # To deduplicate points
     # with open(exp_file, "a") as f:
-    #     for info, point in vertices_with_info:
+    #     for point in vertices:
     #         if point.tobytes() in written:
     #             continue
     #         written.add(point.tobytes())
-    #         f.write(
-    #             f"{info};{str(point.tolist()).replace("[", "").replace("]", "").replace(" ", "")}\n"
-    #         )
+    #         f.write(f"{str(point.tolist()).replace("[", "").replace("]", "").replace(" ", "")}\n")
 
     # logger.info(f"Wrote {len(written)} unique vertices to {exp_file}")
 
@@ -877,91 +956,64 @@ if __name__ == "__main__":
 
     # ################
 
-    # # Solve the boxworld polytope using the CDD solver
-    # from solve_full_polytope import PolytopeTypes, PolytopeWrapper, RepTypes
+    # Solve the boxworld polytope using the CDD solver
+    from solve_full_polytope import PolytopeTypes, PolytopeWrapper, RepTypes
 
-    # # symmetries = generate_symmetries_binary(
-    # #     n_inputs_alice=2,
-    # #     n_inputs_bob_short=2,
-    # #     n_inputs_bob_long=3,
-    # # )
-    # # logger.info(f"Generated {len(symmetries)} symmetries for the boxworld polytope.")
+    # Load the vertices from the file
+    seen = set()  # To deduplicate points
+    vertices_list: list[np.ndarray] = []  # To store the vertices
 
-    # # seen = set()
-    # # vertices = []
-    # # with open(exp_file, "r") as f:
-    # #     logger.info(f"Loading vertices from {exp_file}...")
-    # #     for line in f:
-    # #         point = np.fromstring(line, sep=",")
-    # #         key = canonical_under(symmetries, point)
-    # #         if key not in seen:
-    # #             seen.add(key)
-    # #             vertices.append(point)
-    # # logger.info(f"Loaded {len(seen)} non-equivalent points from {exp_file}.")
-    # # logger.info(
-    # #     f"{len(symmetries)} symmetries * {len(seen)} unique points = {len(seen) * len(symmetries)} total points."
-    # # )
+    with open(exp_file, "r") as f:
+        # Load the vertices from the file
+        logger.info(f"Loading vertices from {exp_file}...")
+        while True:
+            line = f.readline()
+            if not line:
+                break
 
-    # # Load the vertices from the file
-    # seen = set()  # To deduplicate points
-    # vertices_list: list[np.ndarray] = []  # To store the vertices
+            # Convert the line to a numpy array and deduplicate
+            if ";" in line:
+                # If the line contains info, split it
+                _, point_str = line.split(";")
+                point = np.array([float(x) for x in point_str.strip().split(",")])
+            else:
+                # If the line does not contain info, just parse the point
+                point = np.array([float(x) for x in line.strip().split(",")])
 
-    # with open(exp_file, "r") as f:
-    #     # Load the vertices from the file
-    #     logger.info(f"Loading vertices from {exp_file}...")
-    #     while True:
-    #         line = f.readline()
-    #         if not line:
-    #             break
+            # We try to deduplicate under the orbit of symmetries
+            if point.tobytes() not in seen:
+                seen.add(point.tobytes())
+                vertices_list.append(point)
 
-    #         # Convert the line to a numpy array and deduplicate
-    #         if ";" in line:
-    #             # If the line contains info, split it
-    #             _, point_str = line.split(";")
-    #             point = np.array([float(x) for x in point_str.strip().split(",")])
-    #         else:
-    #             # If the line does not contain info, just parse the point
-    #             point = np.array([float(x) for x in line.strip().split(",")])
+    # Convert the list of vertices to a numpy array
+    vertices: np.ndarray = np.array(vertices_list)
+    # vertices = np.loadtxt(exp_file, delimiter=",")
+    logger.info(f"Loaded {len(vertices)} unique vertices from {exp_file}")
 
-    #         # We try to deduplicate under the orbit of symmetries
-    #         if point.tobytes() not in seen:
-    #             seen.add(point.tobytes())
-    #             vertices_list.append(point)
+    v_representation = np.hstack(
+        [
+            np.ones(
+                (len(vertices), 1)
+            ),  # Add a column of ones to indicate these are proper vertices
+            vertices,
+        ]
+    )
 
-    # # Convert the list of vertices to a numpy array
-    # vertices: np.ndarray = np.array(vertices_list)
-    # # vertices = np.loadtxt(exp_file, delimiter=",")
-    # logger.info(f"Loaded {len(vertices)} unique vertices from {exp_file}")
+    logger.info("Starting to solve the boxworld polytope...")
+    solver = PolytopeWrapper(
+        source_array=v_representation,
+        rep_type=RepTypes.GENERATOR,
+        lin_set=None,
+    )
+    logger.info("Boxworld polytope loaded.")
 
-    # v_representation = np.hstack(
-    #     [
-    #         np.ones(
-    #             (len(vertices), 1)
-    #         ),  # Add a column of ones to indicate these are proper vertices
-    #         vertices,
-    #     ]
-    # )
+    bounded = solver.is_bounded()
+    if bounded:
+        logger.info("The boxworld polytope is bounded.")
+    else:
+        logger.warning("The boxworld polytope is unbounded?")
 
-    # # # Deduplicate vertices
-    # # v_representation_unique = np.unique(v_representation, axis=0)
-    # # print(f"Vertices shape (deduped): {v_representation_unique.shape}")
-    # # print(v_representation_unique[:, 0])  # Print first 5 vertices for debugging
-
-    # logger.info("Starting to solve the boxworld polytope...")
-    # solver = PolytopeWrapper(
-    #     source_array=v_representation,
-    #     rep_type=RepTypes.GENERATOR,
-    #     lin_set=None,
-    # )
-    # logger.info("Boxworld polytope loaded.")
-
-    # bounded = solver.is_bounded()
-    # if bounded:
-    #     logger.info("The boxworld polytope is bounded.")
-    # else:
-    #     logger.warning("The boxworld polytope is unbounded?")
-
-    # solver.write_inequalities(
-    #     polytope_type=PolytopeTypes.MEASURED,
-    #     file_id=exp_file.split(".")[0],
-    # )
+    solver.write_inequalities(
+        polytope_type=PolytopeTypes.MEASURED,
+        file_id=exp_file.split(".")[0],
+    )
