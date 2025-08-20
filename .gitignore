@@ -8,5 +8,8 @@ notebooks_legacy/
 docs/
 code_legacy/
 output/legacy/
+*.txt
 
 boxworld_extremals_*.txt
+
+*.env
