@@ -63,7 +63,7 @@ def float_to_rational(
             f"Value {value} couldn't be represented as a rational within the given precision after {iterations} iterations."  # noqa: E501
         )
 
-    logger.debug(f"Converted {value} to rational {sign * numerator}/{denominator}")
+    logger.trace(f"Converted {value} to rational {sign * numerator}/{denominator}")
     return sign * numerator, denominator
 
 
@@ -179,7 +179,7 @@ def call_panda(input_file: str, output_file: str) -> None:
     if PANDA is None:
         raise RuntimeError("PANDA environment variable is not set or could not be loaded.")
     subprocess.run(
-        f"{PANDA} {input_file} > {output_file} --integer-type=safe --threads=16",
+        f"{PANDA} --threads=16 --integer-type=safe {input_file} > {output_file}",
         check=True,
         shell=True,
     )
