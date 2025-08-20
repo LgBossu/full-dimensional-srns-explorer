@@ -29,6 +29,7 @@ dash = "^3.0.4"
 pandas = "^2.2.3"
 qutip-qip = "^0.4.1"
 pycddlib = "2.1.7"
+python-dotenv = "^1.1.1"
 
 [tool.mypy]
 python_version = "3.10"
