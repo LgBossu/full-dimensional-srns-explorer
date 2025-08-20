@@ -185,9 +185,9 @@ def run_panda(input_file: str) -> str:
     """
     Run the PANDA tool on the given input file and return the path to the output file.
     """
-    output_file = input_file.replace(".txt", "_output.txt")
-    call_panda(input_file, output_file)
-    return output_file
+    _in, _out = format_input(input_file)
+    call_panda(_in, _out)
+    return _out
 
 
 if __name__ == "__main__":
