@@ -84,6 +84,6 @@ See `LICENSE` file for details.
 
 # Additional info
 
-As of Aug 20, 2025, we try to complete certain computations using [PANDA](http://comopt.ifi.uni-heidelberg.de/software/PANDA/) (see the associated [publication](http://comopt.ifi.uni-heidelberg.de/software/PANDA/#publication) ; the [archive repo we used](https://github.com/stefanloerwald/panda), and a personal [fork](https://github.com/LgBossu/panda) introduced to fix the source code on my personal setup (details on github, or by contacting me directly)).
+As of Aug 20, 2025, we try to complete certain computations using [PANDA: Parallel AdjaceNcy Decomposition Algorithm](http://comopt.ifi.uni-heidelberg.de/software/PANDA/) (see the associated [publication](http://comopt.ifi.uni-heidelberg.de/software/PANDA/#publication) ; the [archive repo we used](https://github.com/stefanloerwald/panda), and a personal [fork](https://github.com/LgBossu/panda) introduced to fix the source code on my personal setup (details on github, or by contacting me directly)).
 The path to the PANDA built executable is stored as an environment variable in `paths.env`, as `PANDA="path/to/panda"`.
 This is expected in `call_panda.py`.
